@@ -1,0 +1,732 @@
+  method /iwbep/if_mgw_appl_srv_runtime~create_deep_entity.
+
+    data : LS_dATA     type zcl_zrfq_bid_submissio_mpc_ext=>ty_data,
+           it_bid_head type table of zrfq_head_bid_re,
+           wa_bid_head like line of  it_bid_head,
+           it_bid_itm  type table of zrfq_item_bid_re,
+           wa_bid_itm  like line of it_bid_itm,
+           it_bid_srv  type table of zrfq_itm_bid_srv,
+           wa_bid_srv  like line of it_bid_srv.
+    data : lo_facade         type ref to /iwbep/if_mgw_dp_int_facade,
+           lv_loginid        type char10,
+           lv_logintype      type char1,
+           lt_request_header type tihttpnvp,
+           ls_request_header like line of lt_request_header,
+           gs_bidatt         type zrfq_attachment,
+           ls_bidatt         type zrfq_attachment,
+           lt_bidatt         type table of zrfq_attachment,
+           lv_dokar          type draw-dokar,
+           lv_doknr          type draw-doknr,
+           lv_dokvr          type dokvr,
+           lv_doktl          type draw-doktl value '000',
+           dokar             type draw-dokar,
+           doknr             type draw-doknr,
+           dokvr             type dokvr,
+           doktl             type draw-doktl,
+           lv_sernr          type numc2,
+           lv_create_flag    type flag,
+           lv_file_name      type filep.
+    data: lo_send_request  type ref to  cl_bcs,
+          lo_document      type ref to  cl_document_bcs,
+          lo_recipient     type ref to  if_recipient_bcs,
+          lo_bcs_exception type ref to  cx_bcs,
+          lt_mailtxt       type standard table of solisti1,
+          l_mailtxt        type solisti1,
+          sender1          type ref to cl_cam_address_bcs,
+          lv_sent_to_all   type os_boolean,
+          lv_subject       type char50,
+          lo_sender        type ref to if_sender_bcs value is initial,
+          lv_email         type adr6-smtp_addr.
+data lv_len TYPE i.
+
+    lo_facade  ?= /iwbep/if_mgw_conv_srv_runtime~get_dp_facade( ).
+    if lo_facade is bound.
+      lt_request_header = lo_facade->get_request_header( ).
+    endif.
+    read table lt_request_header into ls_request_header with key name = 'loginid'.
+    if sy-subrc = 0.
+      lv_loginid = ls_request_header-value.
+      translate lv_loginid to upper case.
+    endif.
+    read table lt_request_header into ls_request_header with key name = 'logintype'.
+    if sy-subrc = 0.
+      lv_logintype  = ls_request_header-value.
+*      translate lv_loginid to upper case.
+    endif.
+
+    data : counter   type i,
+           counter_h type i.
+    case iv_entity_set_name .
+      when  'GeneralDetailsSet'.
+
+        io_data_provider->read_entry_data( importing es_data = ls_data ).
+        if LV_logintype = 'p'.
+          ls_data-supplier =  lv_loginid.
+          data(supp) = |%{ lv_loginid }|.
+          select single * from zrfq_head_bid_re
+            where event_no = @ls_data-eventno and rfq_no = @ls_data-rfqnumber and quotationid = @ls_data-quotationid
+            and supplier like @supp
+            into @data(bid_head).
+        elseif LV_logintype = 'E'.
+          supp = |%{ ls_data-supplier }|.
+          select single * from zrfq_head_bid_re
+            where event_no = @ls_data-eventno and rfq_no = @ls_data-rfqnumber and quotationid = @ls_data-quotationid
+            and supplier like @supp
+            into @bid_head.
+        endif.
+
+        if ls_data is not initial and ls_Data-indicator = 'SUBMIT'.
+
+
+          wa_bid_head-bidstatus = 'Quoted'.
+          wa_bid_head-rfq_no = ls_data-rfqnumber.
+          wa_bid_head-event_no = ls_data-eventno.
+          wa_bid_head-quotationid = ls_data-QuotationID.
+          wa_bid_head-supplierref = bid_head-supplierref.
+          wa_bid_head-round = bid_head-round.
+          wa_bid_head-suppliername = bid_head-suppliername.
+          wa_bid_head-emailid = bid_head-emailid.
+          wa_bid_head-contact = bid_head-contact.
+          wa_bid_head-supplierstatus = bid_head-supplierstatus.
+          wa_bid_head-createdby = sy-uname.
+          wa_bid_head-createdat = sy-uzeit.
+          wa_bid_head-createdon = sy-datlo.
+          loop at ls_data-generaldetailstogendettcnp into data(gc_tc).
+
+            wa_bid_head-rfq_no = GC_tC-rfqnumber.
+            wa_bid_head-event_no = GC_tC-eventno.
+            wa_bid_head-quotationid = GC_tC-QuotationID.
+            wa_bid_head-supplier = ls_data-supplier.
+            wa_bid_head-paymentterm = GC_Tc-pay_term.
+            wa_bid_head-delterm = GC_Tc-del_term.
+            wa_bid_head-deltimeline = GC_Tc-del_timeline.
+            wa_bid_head-abg = GC_Tc-abg.
+            wa_bid_head-pbg = GC_Tc-pbg.
+            wa_bid_head-cpbg = GC_Tc-cpbg.
+            wa_bid_head-warrantyshort  = GC_Tc-warrenty_dlp.
+            wa_bid_head-ld  = GC_Tc-ld.
+            wa_bid_head-ld_delay_min = GC_Tc-SupplierLDMin.
+            wa_bid_head-ld_delay_cap = GC_Tc-SupplierLDCap.
+            wa_bid_head-ldper = GC_Tc-ld_per.
+            wa_bid_head-supplierremarks = GC_Tc-SupplierRemarks.
+
+            read table ls_data-generaldetailstogcctermsnp into data(gcc_t) with key
+            rfqnumber = GC_tC-rfqnumber eventno = GC_tC-eventno
+            quotationid  = GC_tC-QuotationID .
+            if sy-subrc = 0.
+              wa_bid_head-gcc_acc = gcc_t-gcc.
+              wa_bid_head-acc_date = gcc_t-date.
+              wa_bid_head-designation = gcc_t-designation.
+              wa_bid_head-person = gcc_t-name.
+
+              lv_len = strlen( gcc_t-deviationremarks ).
+
+              if lv_len > 1750.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500(250).
+                wa_bid_head-remarks4 = gcc_t-deviationremarks+750(250).
+                wa_bid_head-remarks5 = gcc_t-deviationremarks+1000(250).
+                wa_bid_head-remarks6 = gcc_t-deviationremarks+1250(250).
+                wa_bid_head-remarks7 = gcc_t-deviationremarks+1500(250).
+                wa_bid_head-remarks8 = gcc_t-deviationremarks+1750.
+              elseif lv_len > 1500.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500(250).
+                wa_bid_head-remarks4 = gcc_t-deviationremarks+750(250).
+                wa_bid_head-remarks5 = gcc_t-deviationremarks+1000(250).
+                wa_bid_head-remarks6 = gcc_t-deviationremarks+1250(250).
+                wa_bid_head-remarks7 = gcc_t-deviationremarks+1500.
+              elseif lv_len > 1250.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500(250).
+                wa_bid_head-remarks4 = gcc_t-deviationremarks+750(250).
+                wa_bid_head-remarks5 = gcc_t-deviationremarks+1000(250).
+                wa_bid_head-remarks6 = gcc_t-deviationremarks+1250.
+              elseif lv_len > 1000.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500(250).
+                wa_bid_head-remarks4 = gcc_t-deviationremarks+750(250).
+                wa_bid_head-remarks5 = gcc_t-deviationremarks+1000.
+              elseif lv_len > 750.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500(250).
+                wa_bid_head-remarks4 = gcc_t-deviationremarks+750.
+              elseif lv_len > 500.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500.
+              elseif lv_len > 250.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250.
+              else.
+                wa_bid_head-remarks = gcc_t-deviationremarks.
+              endif.
+CLEAR lv_len.
+*              wa_bid_head-remarks = gcc_t-deviationremarks.
+            endif.
+            append wa_bid_head to it_bid_head.
+            clear : wa_bid_head.
+          endloop.
+
+          clear : counter.
+
+
+
+          if lv_loginid is not initial.
+            select single max( round ) from ZRFQ_item_BID_RE
+              where event_no = @ls_data-eventno
+              and supplier like @supp
+              into @data(round).
+          endif.
+
+          loop at ls_data-generaldetailstoitemnp into data(gd_itm).
+            if round is initial.
+              counter =  1.
+            else.
+              counter = round + 1.
+            endif.
+            wa_bid_itm-round = counter.
+            wa_bid_itm-rfq_no = gd_itm-rfqnumber.
+            wa_bid_itm-event_no = gd_itm-eventno.
+            wa_bid_itm-lineitem = gd_itm-rfqlineitem.
+            wa_bid_itm-prnumber = gd_itm-prnumber.
+            wa_bid_itm-prlineitem = gd_itm-prlineitem.
+            wa_bid_itm-supplierref = bid_head-supplierref.
+            wa_bid_itm-linetype  = gd_itm-rfqtype.
+            wa_bid_itm-quotationid  = gd_itm-QuotationID.
+            wa_bid_itm-supplier  = ls_data-supplier.
+*                        data(Suppn) = |%{ ls_data-supplier }|.
+            select single ven_name from zvend_onbrd into @wa_bid_itm-suppliername
+              where dummy_vendor = @bid_head-supplierref.
+            wa_bid_itm-material  = gd_itm-description.
+            wa_bid_itm-pf  = gd_itm-pac_forward.
+            wa_bid_itm-freight_ins  = gd_itm-frg_ins.
+            wa_bid_itm-baseprice  = gd_itm-basicprice.
+            wa_bid_itm-discount  = gd_itm-discount.
+            wa_bid_itm-TAXamt  = gd_itm-taxamt.
+            wa_bid_itm-deliverydays = gd_itm-deliverydays.
+            wa_bid_itm-remarks = gd_itm-remarks.
+            wa_bid_itm-TAXcode  = gd_itm-taxcode.
+            wa_bid_itm-unitamt  = gd_itm-unitamount.
+            wa_bid_itm-totamt  = gd_itm-totalamt.
+            wa_bid_itm-totunitprice = gd_itm-totunitprice.
+            wa_bid_itm-currency = gd_itm-Currency.
+            wa_bid_itm-ebeln  = gd_itm-purchaseorder.
+            wa_bid_itm-ebelp  = gd_itm-purchaseorderitem.
+            wa_bid_itm-lifnr  = gd_itm-vendor.
+            wa_bid_itm-poprice  = gd_itm-poprice.
+            WA_BID_itm-createdby = sy-uname.
+            WA_BID_itm-createdat = sy-uzeit.
+            WA_BID_itm-createdon = sy-datlo.
+            append wa_bid_itm to it_bid_itM.
+            clear :  wa_bid_itm.
+
+          endloop.
+
+          clear : counter.
+          """"""""""FOR SERVICE LINE ITEM"""""""""""
+          data : it_srv_itm type table of zrfq_itm_bid_srv,
+                 wa_srv_itm like line of it_srv_itm.
+          loop at ls_data-gendettoserviceitemnp into data(gd_itm1).
+            if round is initial.
+              counter =  1.
+            else.
+              counter = round + 1.
+            endif.
+            wa_srv_itm-round = counter.
+            wa_srv_itm-rfq_no = gd_itm1-rfqnumber.
+            wa_srv_itm-event_no = gd_itm1-eventno.
+*            WA_SRV_ITM-lineitem = gd_itm1-rfqlineitem.
+            wa_srv_itm-pritmkey = gd_itm1-pritemkey.
+            wa_srv_itm-prnumber = gd_itm1-prnumber.
+            wa_srv_itm-prlineitem = gd_itm1-prlineitem.
+            wa_srv_itm-servicelineitem = gd_itm1-servicelineitem.
+            wa_srv_itm-servicenumber = gd_itm1-serviceno.
+            wa_srv_itm-supplierref = bid_head-supplierref.
+            wa_srv_itm-linetype  = gd_itm1-rfqtype.
+            wa_srv_itm-quotationid  = gd_itm1-QuotationID.
+            wa_srv_itm-supplier  = ls_data-supplier.
+*                        data(Suppn) = |%{ ls_data-supplier }|.
+            select single ven_name from zvend_onbrd into @wa_SRV_itm-suppliername
+              where dummy_vendor = @bid_head-supplierref.
+            wa_srv_itm-material  = gd_itm1-description.
+            wa_srv_itm-pf  = gd_itm1-pac_forward.
+            wa_srv_itm-freight_ins  = gd_itm1-frg_ins.
+            wa_srv_itm-baseprice  = gd_itm1-basicprice.
+            wa_srv_itm-discount  = gd_itm1-discount.
+            wa_srv_itm-TAXamt  = gd_itm1-taxamt.
+            wa_srv_itm-deliverydays = gd_itm1-deliverydays.
+            wa_srv_itm-remarks = gd_itm1-remarks.
+            wa_srv_itm-rfqqty = gd_itm1-rfqqty.
+            wa_srv_itm-uom = gd_itm1-uom.
+
+            wa_srv_itm-TAXcode  = gd_itm1-taxcode.
+            wa_srv_itm-unitamt  = gd_itm1-unitamount.
+            wa_srv_itm-totamt  = gd_itm1-totalamt.
+            wa_srv_itm-totunitprice = gd_itm1-totunitprice.
+            wa_srv_itm-currency = gd_itm1-Currency.
+            wa_srv_itm-createdby = sy-uname.
+            wa_srv_itm-createdat = sy-uzeit.
+            wa_srv_itm-createdon = sy-datlo.
+            append wa_SRV_ITM to it_SRV_itM.
+            clear :  wa_SRV_itm.
+
+          endloop.
+
+          modify zrfq_itm_bid_srv from table it_SRV_itM.
+
+          """""""""""""""""""""
+
+
+          loop at ls_data-gendettobidattachmentnp into data(bidatt).
+            if bidatt-docid is initial.
+              select * from zrfq_attachment into table @data(it_bidatt) where rfqid = @lS_DATA-rfqnumber
+                and doknr = @bidatt-docid and quotationid    = @bidatt-qutationid..
+              if sy-subrc = 0.
+                sort it_bidatt by dokvr descending.
+                read table it_bidatt into ls_BIDATT index 1.
+                if sy-subrc = 0.
+                  lv_doknr = ls_BIDATT-doknr.
+                  lv_dokvr = ls_BIDATT-dokvr.
+                endif.
+              endif.
+
+              if lv_dokvr is not initial and lv_dokvr ne '00'.
+                lv_sernr = lv_dokvr.
+                lv_sernr = lv_sernr + 1.
+              else.
+                lv_sernr = '01'.
+              endif.
+              lv_dokvr = lv_sernr.
+              lv_create_flag = 'X'.
+              lv_file_name = bidatt-filename.
+
+              lv_dokar = 'ZVP'.
+              try.
+                  call method zcl_supp_portal_utility=>send_file_to_dms
+                    exporting
+                      mimetype    = bidatt-filetype
+                      content     = bidatt-filecontent
+                      file_name   = lv_file_name
+                      create_flag = lv_create_flag
+                      i_doknr     = lv_doknr
+                      i_dokvr     = lv_dokvr
+                      i_dokar     = lv_dokar
+                    importing
+                      dokar       = dokar
+                      doknr       = doknr
+                      dokvr       = dokvr
+                      doktl       = doktl.
+                catch /iwbep/cx_mgw_busi_exception .
+                catch /iwbep/cx_mgw_tech_exception .
+              endtry.
+              bidatt-docid =   doknr.
+              .
+
+              ls_BIDATT-rfqid = ls_data-rfqnumber.
+              ls_BIDATT-dokar        = dokar.
+              ls_BIDATT-doknr        = bidatt-docid .
+              ls_BIDATT-dokvr        = dokvr.
+              ls_BIDATT-doktl        = doktl.
+              ls_bidatt-quotationid    = bidatt-qutationid.
+              ls_BIDATT-file_name    = lv_file_name.
+              ls_BIDATT-uploaded_by  = lv_loginid.
+              ls_BIDATT-dele_ind     = ''.
+              ls_BIDatt-specification =  bidatt-specification.
+              ls_BIDatt-attachmenttype = bidatt-attachmenttype.
+              ls_BIDatt-file_type =      bidatt-filetype.
+              ls_BIDatt-sendtosupplier = bidatt-sendtosupplier.
+              append ls_BIDatt to lt_bidatt.
+              clear ls_bidatt.
+            else.
+
+
+              select single * from zrfq_attachment into @Gs_BIDatt
+                where rfqid = @bidatt-rfqid and doknr = @bidatt-docid and quotationid    = @bidatt-qutationid.
+
+              ls_BIDATT-rfqid        = ls_data-rfqnumber.
+              ls_BIDATT-dokar        = Gs_BIDatt-dokar.
+              ls_BIDATT-doknr        = bidatt-docid .
+              ls_BIDATT-dokvr        = Gs_BIDatt-dokvr.
+              ls_BIDATT-doktl        = Gs_BIDatt-doktl.
+              ls_bidatt-quotationid    = bidatt-qutationid.
+              ls_BIDATT-file_name    = Gs_BIDatt-file_name.
+              ls_BIDATT-uploaded_by  = lv_loginid.
+              ls_BIDATT-dele_ind     = ''.
+              ls_BIDatt-specification = gs_BIDatt-specification.
+              ls_BIDatt-attachmenttype = gs_BIDatt-attachmenttype.
+              ls_BIDatt-file_type = gs_BIDatt-file_type.
+              ls_BIDatt-sendtosupplier = bidatt-sendtosupplier.
+              append ls_BIDatt to lt_bidatt.
+              clear ls_bidatt.
+            endif.
+
+
+*      if ls_RFQATT is not initial.
+*         MODIFY zrfq_attachment from ls_rfqatt.
+            clear: dokar, dokvr, doknr, doktl, lv_doknr, lv_dokvr.
+*      endif.
+
+            bidatt-filecontent = ' '.
+            modify ls_data-gendettobidattachmentnp from bidatt transporting filecontent.
+          endloop.
+
+          if lt_bidatt is not initial.
+            modify zrfq_attachment from table LT_BIDatt.
+
+          endif.
+
+
+          if it_bid_head is not initial and it_bid_itm is not initial.
+            modify zrfq_head_bid_re from table it_bid_head.
+            modify zrfq_item_bid_re from table it_bid_itm.
+
+            update zrfq_otp
+set submit = 'X'
+where event_no = ls_data-eventno and  rfq_no = ls_data-rfqnumber and quotationid = ls_data-quotationid.
+            if sy-subrc is initial.
+              commit work and wait.
+            endif.
+*UPDATE ZRFQ_HEADER SET rfqstatus = 'Bid Complete' bidstatus = 'Quoted'
+*WHERE event_no = LS_DATA-eventno.
+*            if sy-subrc = 0.
+
+*            endif.
+*---------------------EMAIL Notification-----------------------------*
+            if ls_data-buyer is not initial.
+              select single name, emailid from zrfq_user_master into @data(ls_buyer_data) where id = @ls_data-buyer.
+              lv_loginid = |{ lv_loginid alpha = in }|.
+              select single name1 from lfa1 into @data(lv_Supplier_name) where lifnr = @lv_loginid.
+
+            endif.
+            lt_mailtxt = value #(
+                ( line = |<HTML> <BODY>| )
+                ( line = |<p style="font-family:Calibri;font-size:15;">Dear { ls_buyer_data-name },</br>| )
+                ( line = |<br/>| )
+                ( line = |A quotation has been submitted by { lv_Supplier_name } for RFQ { ls_data-rfqnumber }.</br>| )
+                ( line = |Please review and proceed further.</br>| )
+                ( line = |<br/>| )
+                ( line = |Regards,<br/>| )
+                ( line = |{ lv_Supplier_name }| )
+            ).
+
+
+
+            try.
+*     -------- create persistent send request ------------------------
+                lo_send_request = cl_bcs=>create_persistent( ).
+
+*     -------- create and set document -------------------------------
+                lv_subject = |Bid Submitted for RFQ – Review Required|.
+
+                lo_document = cl_document_bcs=>create_document(
+                  i_type    = 'HTM'
+                  i_text    = lt_mailtxt
+                  i_subject = lv_subject ).
+
+
+                data:lv_send type string.
+                lv_send  = sy-uname.
+                call method lo_send_request->set_document( lo_document ).
+
+                try.
+                    lo_sender = cl_sapuser_bcs=>create( sy-uname ).
+                    lo_send_request->set_sender(
+                      exporting
+                        i_sender = lo_sender ).
+                  catch cx_address_bcs.
+****Catch exception here
+                endtry.
+                """""""""""""""""""""""""""""""""""""""""EOC.
+
+                lv_email = ls_buyer_data-emailid.
+                lo_recipient = cl_cam_address_bcs=>create_internet_address( lv_email ).
+                clear lv_email.
+*     add recipient with its respective attributes to send request
+                call method lo_send_request->add_recipient
+                  exporting
+                    i_recipient = lo_recipient
+                    i_express   = 'X'.
+
+                data(lv_PRNUMBER) = it_bid_itM[ 1 ]-prnumber.
+                data(lv_PRITEM) = it_bid_itM[ 1 ]-prlineitem.
+                select single purgroup from zrfq_prdashboard into @data(lv_purgroup) where prnumber = @lv_PRNUMBER and pritem = @lv_PRITEM.
+                clear : lv_PRNUMBER, lv_PRITEM.
+
+                select single
+                  emailid from zrfq_user_master as a
+                  join zdepartment_det as b on
+                  a~id = b~hod_scm
+                  into @data(lv_scmid)
+                  where b~pur_grp = @lv_purgroup.
+                if lv_scmid is not initial.
+
+                  lv_email = lv_scmid.
+                  lo_recipient = cl_cam_address_bcs=>create_internet_address( lv_email ).
+                  clear lv_email.
+*     add recipient with its respective attributes to send request
+                  call method lo_send_request->add_recipient
+                    exporting
+                      i_recipient = lo_recipient
+                      i_copy      = 'X'.
+                endif.
+
+
+
+                call method lo_send_request->set_send_immediately
+                  exporting
+                    i_send_immediately = 'X'.
+
+                call method lo_send_request->send(
+                  exporting
+                    i_with_error_screen = 'X'
+                  receiving
+                    result              = lv_sent_to_all ).
+                if lv_sent_to_all is initial.
+                  raise exception type /iwbep/cx_mgw_busi_exception
+                    exporting
+                      message = 'Error while sending e-mail.'.
+                else.
+                  commit work and wait.
+                endif.
+              catch cx_bcs into lo_bcs_exception.
+            endtry.
+*--------------------------------------------------------------------*
+
+          endif.
+        elseif ls_data is not initial and ls_data-indicator = 'DECLINE'.
+
+          wa_bid_head-bidstatus = 'Declined'.
+          wa_bid_head-rfq_no = ls_data-rfqnumber.
+          wa_bid_head-event_no = ls_data-eventno.
+          wa_bid_head-quotationid = ls_data-QuotationID.
+          wa_bid_head-supplierref = bid_head-supplierref.
+          wa_bid_head-round = bid_head-round.
+          wa_bid_head-suppliername = bid_head-suppliername.
+          wa_bid_head-emailid = bid_head-emailid.
+          wa_bid_head-contact = bid_head-contact.
+          wa_bid_head-supplierstatus = bid_head-supplierstatus.
+          wa_bid_head-createdby = sy-uname.
+          wa_bid_head-createdat = sy-uzeit.
+          wa_bid_head-createdon = sy-datlo.
+          loop at ls_data-generaldetailstogendettcnp into gc_tc.
+            wa_bid_head-rfq_no = GC_tC-rfqnumber.
+            wa_bid_head-event_no = GC_tC-eventno.
+            wa_bid_head-quotationid = GC_tC-QuotationID.
+            wa_bid_head-supplier = ls_data-supplier.
+            wa_bid_head-paymentterm = GC_Tc-pay_term.
+            wa_bid_head-delterm = GC_Tc-del_term.
+            wa_bid_head-deltimeline = GC_Tc-del_timeline.
+            wa_bid_head-abg = GC_Tc-abg.
+            wa_bid_head-pbg = GC_Tc-pbg.
+            wa_bid_head-cpbg = GC_Tc-cpbg.
+            wa_bid_head-warrantyshort  = GC_Tc-warrenty_dlp.
+            wa_bid_head-ld  = GC_Tc-ld.
+            wa_bid_head-ld_delay_min = GC_Tc-SupplierLDMin.
+            wa_bid_head-ld_delay_cap = GC_Tc-SupplierLDCap.
+            wa_bid_head-ldper = GC_Tc-ld_per.
+            wa_bid_head-remarks = GC_Tc-SupplierRemarks.
+            read table ls_data-generaldetailstogcctermsnp into gcc_t with key
+            rfqnumber = GC_tC-rfqnumber eventno = GC_tC-eventno
+            quotationid  = GC_tC-QuotationID .
+            if sy-subrc = 0.
+              wa_bid_head-gcc_acc = gcc_t-gcc.
+              wa_bid_head-acc_date = gcc_t-date.
+              wa_bid_head-designation = gcc_t-designation.
+              wa_bid_head-person = gcc_t-name.
+               lv_len = strlen( gcc_t-deviationremarks ).
+              if lv_len > 1750.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500(250).
+                wa_bid_head-remarks4 = gcc_t-deviationremarks+750(250).
+                wa_bid_head-remarks5 = gcc_t-deviationremarks+1000(250).
+                wa_bid_head-remarks6 = gcc_t-deviationremarks+1250(250).
+                wa_bid_head-remarks7 = gcc_t-deviationremarks+1500(250).
+                wa_bid_head-remarks8 = gcc_t-deviationremarks+1750.
+              elseif lv_len > 1500.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500(250).
+                wa_bid_head-remarks4 = gcc_t-deviationremarks+750(250).
+                wa_bid_head-remarks5 = gcc_t-deviationremarks+1000(250).
+                wa_bid_head-remarks6 = gcc_t-deviationremarks+1250(250).
+                wa_bid_head-remarks7 = gcc_t-deviationremarks+1500.
+              elseif lv_len > 1250.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500(250).
+                wa_bid_head-remarks4 = gcc_t-deviationremarks+750(250).
+                wa_bid_head-remarks5 = gcc_t-deviationremarks+1000(250).
+                wa_bid_head-remarks6 = gcc_t-deviationremarks+1250.
+              elseif lv_len > 1000.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500(250).
+                wa_bid_head-remarks4 = gcc_t-deviationremarks+750(250).
+                wa_bid_head-remarks5 = gcc_t-deviationremarks+1000.
+              elseif lv_len > 750.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500(250).
+                wa_bid_head-remarks4 = gcc_t-deviationremarks+750.
+              elseif lv_len > 500.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250(250).
+                wa_bid_head-remarks3 = gcc_t-deviationremarks+500.
+              elseif lv_len > 250.
+                wa_bid_head-remarks = gcc_t-deviationremarks+0(250).
+                wa_bid_head-remarks2 = gcc_t-deviationremarks+250.
+              else.
+                wa_bid_head-remarks = gcc_t-deviationremarks.
+              endif.
+              CLEAR lv_len.
+            endif.
+            append wa_bid_head to it_bid_head.
+            clear : wa_bid_head.
+          endloop.
+
+          clear : counter.
+          select single max( round ) from ZRFQ_item_BID_RE
+            where event_no = @ls_data-eventno
+            and supplier like @supp
+            into @round.
+          loop at ls_data-generaldetailstoitemnp into gd_itm.
+            if round is initial.
+              counter =  1.
+            else.
+              counter = round + 1.
+            endif.
+            wa_bid_itm-round = counter.
+            wa_bid_itm-rfq_no = gd_itm-rfqnumber.
+            wa_bid_itm-event_no = gd_itm-eventno.
+            wa_bid_itm-lineitem = gd_itm-rfqlineitem.
+            wa_bid_itm-linetype  = gd_itm-rfqtype.
+            wa_bid_itm-supplierref = bid_head-supplierref.
+            wa_bid_itm-quotationid  = gd_itm-QuotationID.
+            wa_bid_itm-supplier  = ls_data-supplier.
+*            Suppn = |%{ ls_data-supplier }|.
+*            SELECT SINGLE name1 FROM lfa1 INTO @wa_bid_itm-suppliername
+*              WHERE lifnr like @Suppn.
+            select single ven_name from zvend_onbrd into @wa_bid_itm-suppliername
+where dummy_vendor = @bid_head-supplierref.
+            wa_bid_itm-material  = gd_itm-description.
+            wa_bid_itm-baseprice  = gd_itm-basicprice.
+            wa_bid_itm-freight_ins  = gd_itm-frg_ins.
+            wa_bid_itm-prnumber = gd_itm-prnumber.
+            wa_bid_itm-prlineitem = gd_itm-prlineitem.
+*  wa_bid_itm-baseprice  = gd_itm-basicprice.
+            wa_bid_itm-deliverydays = gd_itm-deliverydays.
+            wa_bid_itm-remarks = gd_itm-remarks.
+            wa_bid_itm-pf  = gd_itm-pac_forward.
+            wa_bid_itm-discount  = gd_itm-discount.
+            wa_bid_itm-TAXamt  = gd_itm-taxamt.
+            wa_bid_itm-TAXcode  = gd_itm-taxcode.
+            wa_bid_itm-unitamt  = gd_itm-unitamount.
+            wa_bid_itm-totamt  = gd_itm-totalamt.
+            wa_bid_itm-totunitprice = gd_itm-totunitprice.
+            wa_bid_itm-currency = gd_itm-Currency.
+            wa_bid_itm-ebeln  = gd_itm-purchaseorder.
+            wa_bid_itm-ebelp  = gd_itm-purchaseorderitem.
+            wa_bid_itm-lifnr  = gd_itm-vendor.
+            wa_bid_itm-poprice  = gd_itm-poprice.
+            WA_BID_itm-createdby = sy-uname.
+            WA_BID_itm-createdat = sy-uzeit.
+            WA_BID_itm-createdon = sy-datlo.
+            append wa_bid_itm to it_bid_itM.
+            clear :  wa_bid_itm.
+
+          endloop.
+
+          clear : counter.
+          """"""""""FOR SERVICE LINE ITEM"""""""""""
+*          DATA : IT_SRV_ITM TYPE TABLE OF ZRFQ_ITM_BID_SRV,
+*                 WA_SRV_ITM LIKE LINE OF IT_SRV_ITM.
+          loop at ls_data-gendettoserviceitemnp into gd_itm1.
+            if round is initial.
+              counter =  1.
+            else.
+              counter = round + 1.
+            endif.
+            wa_srv_itm-round = counter.
+            wa_srv_itm-rfq_no = gd_itm1-rfqnumber.
+            wa_srv_itm-event_no = gd_itm1-eventno.
+*            WA_SRV_ITM-lineitem = gd_itm1-rfqlineitem.
+            wa_srv_itm-pritmkey = gd_itm1-pritemkey.
+            wa_srv_itm-prnumber = gd_itm1-prnumber.
+            wa_srv_itm-prlineitem = gd_itm1-prlineitem.
+            wa_srv_itm-servicelineitem = gd_itm1-servicelineitem.
+            wa_srv_itm-servicenumber = gd_itm1-serviceno.
+            wa_srv_itm-supplierref = bid_head-supplierref.
+            wa_srv_itm-linetype  = gd_itm1-rfqtype.
+            wa_srv_itm-quotationid  = gd_itm1-QuotationID.
+            wa_srv_itm-supplier  = ls_data-supplier.
+*                        data(Suppn) = |%{ ls_data-supplier }|.
+            select single ven_name from zvend_onbrd into @wa_SRV_itm-suppliername
+              where dummy_vendor = @bid_head-supplierref.
+            wa_srv_itm-material  = gd_itm1-description.
+            wa_srv_itm-pf  = gd_itm1-pac_forward.
+            wa_srv_itm-freight_ins  = gd_itm1-frg_ins.
+            wa_srv_itm-baseprice  = gd_itm1-basicprice.
+            wa_srv_itm-discount  = gd_itm1-discount.
+            wa_srv_itm-TAXamt  = gd_itm1-taxamt.
+            wa_srv_itm-deliverydays = gd_itm1-deliverydays.
+            wa_srv_itm-remarks = gd_itm1-remarks.
+            wa_srv_itm-rfqqty = gd_itm1-rfqqty.
+            wa_srv_itm-uom = gd_itm1-uom.
+
+            wa_srv_itm-TAXcode  = gd_itm1-taxcode.
+            wa_srv_itm-unitamt  = gd_itm1-unitamount.
+            wa_srv_itm-totamt  = gd_itm1-totalamt.
+            wa_srv_itm-totunitprice = gd_itm1-totunitprice.
+            wa_srv_itm-currency = gd_itm1-Currency.
+            wa_srv_itm-createdby = sy-uname.
+            wa_srv_itm-createdat = sy-uzeit.
+            wa_srv_itm-createdon = sy-datlo.
+            append wa_SRV_ITM to it_SRV_itM.
+            clear :  wa_SRV_itm.
+
+          endloop.
+
+          modify zrfq_itm_bid_srv from table it_SRV_itM.
+
+          """""""""""""""""""""
+
+
+
+          clear : round.
+          if it_bid_head is not initial and it_bid_itm is not initial.
+            modify zrfq_head_bid_re from table it_bid_head.
+            modify zrfq_item_bid_re from table it_bid_itm.
+
+*UPDATE ZRFQ_HEADER SET rfqstatus = 'Bid Cancelled'
+* bidstatus = 'Decline'
+*
+*WHERE event_no = LS_DATA-eventno.
+*            if sy-subrc = 0.
+*              copy_data_to_ref(
+*                exporting
+*                  is_data = ls_data
+*                changing
+*                  cr_data = er_deep_entity
+*              ).
+*            endif.
+          endif.
+        endif.
+
+        clear : bid_head.
+    endcase.
+
+
+    copy_data_to_ref(
+      exporting
+        is_data = ls_data
+      changing
+        cr_data = er_deep_entity
+    ).
+  endmethod.

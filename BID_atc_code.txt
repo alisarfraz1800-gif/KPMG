@@ -63,13 +63,15 @@ data lv_len TYPE i.
         if LV_logintype = 'p'.
           ls_data-supplier =  lv_loginid.
           data(supp) = |%{ lv_loginid }|.
-          select single * from zrfq_head_bid_re
+          select single supplierref, round, suppliername, emailid, contact, supplierstatus
+            from zrfq_head_bid_re
             where event_no = @ls_data-eventno and rfq_no = @ls_data-rfqnumber and quotationid = @ls_data-quotationid
             and supplier like @supp
             into @data(bid_head).
         elseif LV_logintype = 'E'.
           supp = |%{ ls_data-supplier }|.
-          select single * from zrfq_head_bid_re
+          select single supplierref, round, suppliername, emailid, contact, supplierstatus
+            from zrfq_head_bid_re
             where event_no = @ls_data-eventno and rfq_no = @ls_data-rfqnumber and quotationid = @ls_data-quotationid
             and supplier like @supp
             into @bid_head.
@@ -285,14 +287,14 @@ CLEAR lv_len.
 
           loop at ls_data-gendettobidattachmentnp into data(bidatt).
             if bidatt-docid is initial.
-              select * from zrfq_attachment into table @data(it_bidatt) where rfqid = @lS_DATA-rfqnumber
-                and doknr = @bidatt-docid and quotationid    = @bidatt-qutationid..
+              select doknr, dokvr from zrfq_attachment into table @data(it_bidatt) where rfqid = @lS_DATA-rfqnumber
+                and doknr = @bidatt-docid and quotationid    = @bidatt-qutationid.
               if sy-subrc = 0.
                 sort it_bidatt by dokvr descending.
-                read table it_bidatt into ls_BIDATT index 1.
+                read table it_bidatt into data(ls_bidatt_ver) index 1.
                 if sy-subrc = 0.
-                  lv_doknr = ls_BIDATT-doknr.
-                  lv_dokvr = ls_BIDATT-dokvr.
+                  lv_doknr = ls_bidatt_ver-doknr.
+                  lv_dokvr = ls_bidatt_ver-dokvr.
                 endif.
               endif.
 
@@ -346,7 +348,8 @@ CLEAR lv_len.
             else.
 
 
-              select single * from zrfq_attachment into @Gs_BIDatt
+              select single dokar, dokvr, doktl, file_name, specification, attachmenttype, file_type
+                from zrfq_attachment into corresponding fields of @Gs_BIDatt
                 where rfqid = @bidatt-rfqid and doknr = @bidatt-docid and quotationid    = @bidatt-qutationid.
 
               ls_BIDATT-rfqid        = ls_data-rfqnumber.

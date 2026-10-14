@@ -142,7 +142,7 @@ DATA: lv_offset TYPE i,
         raise exception type /iwbep/cx_mgw_busi_exception
           exporting
             textid  = /iwbep/cx_mgw_busi_exception=>business_error
-            message = 'Buyer email ID is not maintained' ##NO_TEXT.
+            message = text-001.
       endif.
       if lt_data-nfaid is initial.
 
@@ -163,7 +163,7 @@ DATA: lv_offset TYPE i,
           raise exception type /iwbep/cx_mgw_busi_exception
             exporting
               textid  = /iwbep/cx_mgw_busi_exception=>business_error
-              message = 'NFA number could not be generated' ##NO_TEXT.
+              message = text-002.
         endif.
 
         lt_data-nfaid = number.
@@ -500,7 +500,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
               read table lt_user_master into data(ls_user_master_check) with key id = ls_department_det-hod_user_department.
               if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                 lv_fail = abap_true.
-                concatenate 'Email id is not maintained against' ls_department_det-hod_user_department into data(lv_msg) separated by space ##NO_TEXT.
+                concatenate text-003 ls_department_det-hod_user_department into data(lv_msg) separated by space.
               endif.
               clear ls_user_master_check.
             elseif ls_department_det-hod_user_department is initial
@@ -511,7 +511,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                or ls_grp_det-level5 = 'HOD-U'
                or ls_grp_det-level6 = 'HOD-U' or ls_grp_det-level7 = 'HOD-U').
               lv_fail = abap_true.
-              lv_msg = 'Id is not maintained in HOD User Department' ##NO_TEXT.
+              lv_msg = text-004.
             endif.
             if lv_fail is initial.
               if ls_department_det-hod_scm is not initial
@@ -524,7 +524,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-hod_scm.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-hod_scm into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-hod_scm into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-hod_scm is initial
@@ -535,7 +535,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                      or ls_grp_det-level5 = 'HOD-S'
                      or ls_grp_det-level6 = 'HOD-S' or ls_grp_det-level7 = 'HOD-S') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in HOD SCM' ##NO_TEXT.
+                lv_msg = text-005.
               endif.
             endif.
             if lv_fail is initial.
@@ -549,7 +549,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-hod_project_dev.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-hod_project_dev into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-hod_project_dev into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif
@@ -561,7 +561,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                     or ls_grp_det-level5 = 'HOD-PD'
                     or ls_grp_det-level6 = 'HOD-PD' or ls_grp_det-level7 = 'HOD-PD') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in HOD PD' ##NO_TEXT.
+                lv_msg = text-006.
               endif.
             endif.
             if lv_fail is initial.
@@ -575,7 +575,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-functional_hod_scm.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-functional_hod_scm into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-functional_hod_scm into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-functional_hod_scm is initial
@@ -586,7 +586,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 or ls_grp_det-level5 = 'FHODSCM'
                 or ls_grp_det-level6 = 'FHODSCM' or ls_grp_det-level7 = 'FHODSCM') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Functional HOD SCM' ##NO_TEXT.
+                lv_msg = text-007.
               endif.
             endif.
             if lv_fail is initial.
@@ -600,7 +600,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-project_controller.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-project_controller into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-project_controller into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-project_controller is initial
@@ -611,7 +611,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 or ls_grp_det-level5 = 'PRCTR'
                 or ls_grp_det-level6 = 'PRCTR' or ls_grp_det-level7 = 'PRCTR') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Project Controller' ##NO_TEXT.
+                lv_msg = text-008.
               endif.
             endif.
             if lv_fail is initial.
@@ -625,7 +625,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-budget_controller.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-budget_controller into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-budget_controller into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-budget_controller is initial
@@ -636,7 +636,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 or ls_grp_det-level5 = 'BGTCTR'
                 or ls_grp_det-level6 = 'BGTCTR' or ls_grp_det-level7 = 'BGTCTR') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Budget Controller' ##NO_TEXT.
+                lv_msg = text-009.
               endif.
             endif.
             if lv_fail is initial.
@@ -650,7 +650,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-finance_controller.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-finance_controller into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-finance_controller into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-finance_controller is initial
@@ -661,7 +661,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 or ls_grp_det-level5 = 'FICTR'
                 or ls_grp_det-level6 = 'FICTR' or ls_grp_det-level7 = 'FICTR') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Finance Controller' ##NO_TEXT.
+                lv_msg = text-010.
               endif.
             endif.
             if lv_fail is initial.
@@ -675,7 +675,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-head_sc.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-head_sc into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-head_sc into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-head_sc is initial
@@ -686,7 +686,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                or ls_grp_det-level5 = 'HEADSC'
                or ls_grp_det-level6 = 'HEADSC' or ls_grp_det-level7 = 'HEADSC') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in HEAD S&C' ##NO_TEXT.
+                lv_msg = text-011.
               endif.
             endif.
             if lv_fail is initial.
@@ -700,7 +700,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-chro.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-chro into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-chro into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-chro is initial
@@ -711,7 +711,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 or ls_grp_det-level5 = 'CHRO'
                 or ls_grp_det-level6 = 'CHRO' or ls_grp_det-level7 = 'CHRO') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in CHRO' ##NO_TEXT.
+                lv_msg = text-012.
               endif.
             endif.
             if lv_fail is initial.
@@ -725,7 +725,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-gcfo.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-gcfo into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-gcfo into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-gcfo is initial
@@ -736,7 +736,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 or ls_grp_det-level5 = 'GCFO'
                 or ls_grp_det-level6 = 'GCFO' or ls_grp_det-level7 = 'GCFO') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in GCFO' ##NO_TEXT.
+                lv_msg = text-013.
               endif.
             endif.
             if lv_fail is initial.
@@ -750,7 +750,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-mgr_scm.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-mgr_scm into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-mgr_scm into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-mgr_scm is initial
@@ -761,7 +761,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                  or ls_grp_det-level5 = 'MGR-SCM'
                  or ls_grp_det-level6 = 'MGR-SCM' or ls_grp_det-level7 = 'MGR-SCM') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Manager SCM' ##NO_TEXT.
+                lv_msg = text-014.
               endif.
             endif.
             if lv_fail is initial.
@@ -775,7 +775,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-ceo.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-ceo into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-ceo into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-ceo is initial
@@ -786,12 +786,12 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                or ls_grp_det-level5 = 'CEO'
                or ls_grp_det-level6 = 'CEO' or ls_grp_det-level7 = 'CEO') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in CEO' ##NO_TEXT.
+                lv_msg = text-015.
               endif.
             endif.
           else.
             lv_fail = abap_true.
-            lv_msg = 'Purchase Group is not maintained' ##NO_TEXT.
+            lv_msg = text-016.
           endif.
         else.
           lv_fail = abap_true.
@@ -1997,7 +1997,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
               i_nfaid    = lv_nfaid
               i_emailto  = lt_emailto
               i_emailcc  = lt_emailcc
-              i_subject  = |Approval Request – NFA { lt_data-nfaid alpha = out }| ##NO_TEXT
+              i_subject  = replace( val = text-017 sub = '&1' with = |{ lt_data-nfaid alpha = out }| )
               i_content  = 'MAIL1'
             importing
               return     = lv_return                 " Character Field with Length 10
@@ -2032,7 +2032,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
               i_nfaid   = lv_nfaid
               i_emailto = lt_emailto
 *             i_emailcc = lt_emailcc
-              i_subject = 'Approver Details Missing for NFA Approval' ##NO_TEXT
+              i_subject = text-018
               i_content = 'MAIL2'
             importing
               return    = lv_return                 " Character Field with Length 10
@@ -2041,13 +2041,13 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
             raise exception type /iwbep/cx_mgw_busi_exception
               exporting
                 textid  = /iwbep/cx_mgw_busi_exception=>business_error
-                message = 'Internal server error. Please contact Azure Team' ##NO_TEXT.
+                message = text-019.
           endif.
 
           raise exception type /iwbep/cx_mgw_busi_exception
             exporting
               textid  = /iwbep/cx_mgw_busi_exception=>business_error
-              message = |Error { lv_msg } - Please check | ##NO_TEXT.
+              message = replace( val = text-020 sub = '&1' with = lv_msg ).
 
         endif.
       endif.
@@ -3471,7 +3471,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                     i_nfaid    = lv_nfaid
                     i_emailto  = lt_emailto
                     i_emailcc  = lt_emailcc
-                    i_subject  = |Approval Request – NFA { lt_data-nfaid alpha = out }| ##NO_TEXT
+                    i_subject  = replace( val = text-017 sub = '&1' with = |{ lt_data-nfaid alpha = out }| )
                     i_content  = 'MAIL1'
                   importing
                     return     = lv_return                 " Character Field with Length 10
@@ -3489,7 +3489,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                       i_nfaid   = lv_nfaid
                       i_emailto = lt_emailto
                       i_emailcc = lt_emailcc
-                      i_subject = |NFA Approved – Proceed for PO Creation| ##NO_TEXT
+                      i_subject = text-021
                       i_content = 'MAIL3'
                     importing
                       return    = lv_return                 " Character Field with Length 10
@@ -3502,7 +3502,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                       i_reason   = lt_data-remark
                       i_emailto  = lt_emailto
                       i_emailcc  = lt_emailcc
-                      i_subject  = |NFA Rejected| ##NO_TEXT
+                      i_subject  = text-022
                       i_content  = 'MAIL5'
                     importing
                       return     = lv_return                 " Character Field with Length 10
@@ -3513,7 +3513,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 raise exception type /iwbep/cx_mgw_busi_exception
                   exporting
                     textid  = /iwbep/cx_mgw_busi_exception=>business_error
-                    message = 'Internal server error. Please contact Azure Team' ##NO_TEXT.
+                    message = text-019.
               endif.
 
             endif.
@@ -3736,7 +3736,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-hod_user_department.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-hod_user_department into lv_msg separated by space ##NO_TEXT.
+                  concatenate text-003 ls_department_det-hod_user_department into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-hod_user_department is initial
@@ -3747,7 +3747,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                  or ls_grp_det-level5 = 'HOD-U'
                  or ls_grp_det-level6 = 'HOD-U' or ls_grp_det-level7 = 'HOD-U').
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in HOD User Department' ##NO_TEXT.
+                lv_msg = text-004.
               endif.
               if lv_fail is initial.
                 if ls_department_det-hod_scm is not initial
@@ -3760,7 +3760,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-hod_scm.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-hod_scm into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-hod_scm into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif ls_department_det-hod_scm is initial
@@ -3771,7 +3771,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                        or ls_grp_det-level5 = 'HOD-S'
                        or ls_grp_det-level6 = 'HOD-S' or ls_grp_det-level7 = 'HOD-S') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in HOD SCM' ##NO_TEXT.
+                  lv_msg = text-005.
                 endif.
               endif.
               if lv_fail is initial.
@@ -3785,7 +3785,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-hod_project_dev.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-hod_project_dev into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-hod_project_dev into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif
@@ -3797,7 +3797,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                       or ls_grp_det-level5 = 'HOD-PD'
                       or ls_grp_det-level6 = 'HOD-PD' or ls_grp_det-level7 = 'HOD-PD') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in HOD PD' ##NO_TEXT.
+                  lv_msg = text-006.
                 endif.
               endif.
               if lv_fail is initial.
@@ -3811,7 +3811,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-functional_hod_scm.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-functional_hod_scm into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-functional_hod_scm into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif ls_department_det-functional_hod_scm is initial
@@ -3822,7 +3822,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   or ls_grp_det-level5 = 'FHODSCM'
                   or ls_grp_det-level6 = 'FHODSCM' or ls_grp_det-level7 = 'FHODSCM') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in Functional HOD SCM' ##NO_TEXT.
+                  lv_msg = text-007.
                 endif.
               endif.
               if lv_fail is initial.
@@ -3836,7 +3836,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-project_controller.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-project_controller into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-project_controller into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif ls_department_det-project_controller is initial
@@ -3847,7 +3847,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   or ls_grp_det-level5 = 'PRCTR'
                   or ls_grp_det-level6 = 'PRCTR' or ls_grp_det-level7 = 'PRCTR') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in Project Controller' ##NO_TEXT.
+                  lv_msg = text-008.
                 endif.
               endif.
               if lv_fail is initial.
@@ -3861,7 +3861,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-budget_controller.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-budget_controller into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-budget_controller into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif ls_department_det-budget_controller is initial
@@ -3872,7 +3872,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   or ls_grp_det-level5 = 'BGTCTR'
                   or ls_grp_det-level6 = 'BGTCTR' or ls_grp_det-level7 = 'BGTCTR') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in Budget Controller' ##NO_TEXT.
+                  lv_msg = text-009.
                 endif.
               endif.
               if lv_fail is initial.
@@ -3886,7 +3886,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-finance_controller.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-finance_controller into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-finance_controller into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif ls_department_det-finance_controller is initial
@@ -3897,7 +3897,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   or ls_grp_det-level5 = 'FICTR'
                   or ls_grp_det-level6 = 'FICTR' or ls_grp_det-level7 = 'FICTR') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in Finance Controller' ##NO_TEXT.
+                  lv_msg = text-010.
                 endif.
               endif.
               if lv_fail is initial.
@@ -3911,7 +3911,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-head_sc.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-head_sc into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-head_sc into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif ls_department_det-head_sc is initial
@@ -3922,7 +3922,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                  or ls_grp_det-level5 = 'HEADSC'
                  or ls_grp_det-level6 = 'HEADSC' or ls_grp_det-level7 = 'HEADSC') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in HEAD S&C' ##NO_TEXT.
+                  lv_msg = text-011.
                 endif.
               endif.
               if lv_fail is initial.
@@ -3936,7 +3936,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-chro.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-chro into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-chro into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif ls_department_det-chro is initial
@@ -3947,7 +3947,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   or ls_grp_det-level5 = 'CHRO'
                   or ls_grp_det-level6 = 'CHRO' or ls_grp_det-level7 = 'CHRO') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in CHRO' ##NO_TEXT.
+                  lv_msg = text-012.
                 endif.
               endif.
               if lv_fail is initial.
@@ -3961,7 +3961,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-gcfo.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-gcfo into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-gcfo into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif ls_department_det-gcfo is initial
@@ -3972,7 +3972,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   or ls_grp_det-level5 = 'GCFO'
                   or ls_grp_det-level6 = 'GCFO' or ls_grp_det-level7 = 'GCFO') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in GCFO' ##NO_TEXT.
+                  lv_msg = text-013.
                 endif.
               endif.
               if lv_fail is initial.
@@ -3986,7 +3986,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-mgr_scm.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-mgr_scm into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-mgr_scm into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif ls_department_det-mgr_scm is initial
@@ -3997,7 +3997,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                    or ls_grp_det-level5 = 'MGR-SCM'
                    or ls_grp_det-level6 = 'MGR-SCM' or ls_grp_det-level7 = 'MGR-SCM') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in Manager SCM' ##NO_TEXT.
+                  lv_msg = text-014.
                 endif.
               endif.
               if lv_fail is initial.
@@ -4011,7 +4011,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                   read table lt_user_master into ls_user_master_check with key id = ls_department_det-ceo.
                   if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                     lv_fail = abap_true.
-                    concatenate 'Email id is not maintained against' ls_department_det-ceo into lv_msg separated by space ##NO_TEXT.
+                    concatenate text-003 ls_department_det-ceo into lv_msg separated by space.
                   endif.
                   clear ls_user_master_check.
                 elseif ls_department_det-ceo is initial
@@ -4022,12 +4022,12 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                  or ls_grp_det-level5 = 'CEO'
                  or ls_grp_det-level6 = 'CEO' or ls_grp_det-level7 = 'CEO') .
                   lv_fail = abap_true.
-                  lv_msg = 'Id is not maintained in CEO' ##NO_TEXT.
+                  lv_msg = text-015.
                 endif.
               endif.
             else.
               lv_fail = abap_true.
-              lv_msg = 'Purchase Group is not maintained' ##NO_TEXT.
+              lv_msg = text-016.
             endif.
           else.
             lv_fail = abap_true.
@@ -4149,7 +4149,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 i_nfaid    = lv_nfaid
                 i_emailto  = lt_emailto
                 i_emailcc  = lt_emailcc
-                i_subject  = |NFA Queried - Provide the Required Response| ##NO_TEXT
+                i_subject  = text-023
                 i_content  = 'MAIL6'
               importing
                 return     = lv_return                 " Character Field with Length 10
@@ -5086,7 +5086,7 @@ refresh : lines.
               raise exception type /iwbep/cx_mgw_busi_exception
                 exporting
                   textid  = /iwbep/cx_mgw_busi_exception=>business_error
-                  message = 'Purchase group is not maintained' ##NO_TEXT.
+                  message = text-024.
             endif.
           endif.
         endif.
@@ -5119,6 +5119,8 @@ data: ls_key_tab     type /iwbep/s_mgw_name_value_pair,
             ls_header      TYPE ihttpnvp,
      lv_name_utf8    TYPE string,
         lv_filename_str TYPE string.
+constants: lc_content_disp TYPE string VALUE 'Content-Disposition',
+           lc_attach_utf8  TYPE string VALUE 'attachment; filename*=UTF-8'''''.
 
 
 CASE iv_entity_set_name.
@@ -5161,11 +5163,11 @@ try.
         ENDCASE.
 
 
-  ls_header-name = 'Content-Disposition' ##NO_TEXT.
+  ls_header-name = lc_content_disp.
           lv_filename_str = lv_file_name.
           lv_name_utf8 = cl_http_utility=>if_http_utility~escape_url( unescaped =  lv_filename_str ).
           REPLACE ALL OCCURRENCES OF '%2e' IN lv_name_utf8 WITH '.'.
-          CONCATENATE 'attachment; filename*=UTF-8''''' lv_name_utf8 INTO ls_header-value ##NO_TEXT.
+          CONCATENATE lc_attach_utf8 lv_name_utf8 INTO ls_header-value.
           set_header( is_header = ls_header ).
 
         copy_data_to_ref( exporting is_data = ls_stream
@@ -5527,7 +5529,7 @@ SELECT FROM ZRFQ_DASHB_DD
                   if sy-subrc is initial.
                     case lv_level.
                     when 'BUYER'.
-                      lv_apppending = 'Buyer' ##NO_TEXT.
+                      lv_apppending = text-025.
                     when 'HOD-U'.
                       read table lt_USER_MASTER into data(ls_USER_MASTER) with key id = ls_department_det-hod_user_department.
                       lv_apppending = |{ ls_department_det-hod_user_department } { ls_USER_MASTER-name }|.
@@ -5647,13 +5649,13 @@ SELECT FROM ZRFQ_DASHB_DD
       if et_entityset is not initial.
         loop at et_entityset assigning field-symbol(<ls_entityset>).
           if <ls_entityset>-action = 'A'.
-            <ls_entityset>-action = 'Approved' ##NO_TEXT.
+            <ls_entityset>-action = text-026.
           endif.
           if <ls_entityset>-action = 'R'.
-            <ls_entityset>-action = 'Rejected' ##NO_TEXT.
+            <ls_entityset>-action = text-027.
           endif.
            if <ls_entityset>-action = 'S'.
-            <ls_entityset>-action = 'Submitted' ##NO_TEXT.
+            <ls_entityset>-action = text-028.
           endif.
           <ls_entityset>-date = |{ <ls_entityset>-date+4(2) }/{ <ls_entityset>-date+6(2) }/{ <ls_entityset>-date+0(4) }|.
           <ls_entityset>-time = |{ <ls_entityset>-time+0(2) }:{ <ls_entityset>-time+2(2) }:{ <ls_entityset>-time+4(2) }|.
@@ -5782,9 +5784,9 @@ SELECT FROM ZRFQ_DASHB_DD
           read table lt_lfa1 into data(ls_lfa1) with key lifnr = ls_ekko-lifnr.
           if sy-subrc = 0.
             if ls_lfa1-sperm = 'X' and ls_lfa1-sperr = 'X'.
-              es_entityset-vendorstatus = 'Block' ##NO_TEXT.
+              es_entityset-vendorstatus = text-029.
             else.
-              es_entityset-vendorstatus = 'Active' ##NO_TEXT.
+              es_entityset-vendorstatus = text-030.
             endif.
           endif.
 
@@ -6185,6 +6187,9 @@ method send_mail.
 
   data: lo_sender        type ref to if_sender_bcs value is initial. " Added by shahrukh 08/01/2026.
 
+  constants: lc_br  type string value '</br>',
+             lc_br2 type string value '<br/>'.
+
   if i_nfaid is not initial.
     lv_nfaid = |{ i_nfaid alpha = out }|.
   endif.
@@ -6194,59 +6199,59 @@ method send_mail.
         ( line = |<HTML> <BODY>| )
         ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_approver },</br>| )
         ( line = |<br/>| )
-        ( line = |NFA { lv_nfaid } is pending for your approval.</br>| ) ##NO_TEXT
-        ( line = |Please review and approve at the earliest.</br>| ) ##NO_TEXT
+        ( line = replace( val = text-031 sub = '&1' with = lv_nfaid ) && lc_br )
+        ( line = text-032 && lc_br )
         ( line = |<br/>| )
         ( line = |<a href="https://azureportalprod-cqtz7hbe.launchpad.cfapps.in30.hana.ondemand.com/site?siteId=fb5c783b-a296-47c9-b4d3-a1a5d4285ace#Shell-home">Click here to view</a></br>| )
         ( line = |<br/>| )
-        ( line = |Regards,<br/>| ) ##NO_TEXT
-        ( line = |Procurement Team| ) ##NO_TEXT
+        ( line = text-033 && lc_br2 )
+        ( line = text-034 )
       ).
     when 'MAIL2'.
       lt_mailtxt = value #(
         ( line = |<HTML> <BODY>| )
         ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
         ( line = |<br/>| )
-        ( line = |Approver details missing against the NFA { lv_nfaid } initiated for Approval.</br>| ) ##NO_TEXT
+        ( line = replace( val = text-035 sub = '&1' with = lv_nfaid ) && lc_br )
         ( line = |<br/>| )
-        ( line = |Kindly click here to vire the NFA details and maintain the appropriate approver details and resubmit for approval.</br>| ) ##NO_TEXT
+        ( line = text-036 && lc_br )
         ( line = |<br/>| )
-        ( line = |Thanks,| ) ##NO_TEXT
+        ( line = text-037 )
         ( line = |<br/>| )
-        ( line = |This is system generated E Mail.| ) ##NO_TEXT
+        ( line = text-038 )
       ).
     when 'MAIL3'.
       lt_mailtxt = value #(
   ( line = |<HTML> <BODY>| )
   ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
   ( line = |<br/>| )
-  ( line = |NFA { lv_nfaid } has been approved at all levels.</br>| ) ##NO_TEXT
-  ( line = |Please proceed with PO creation.</br>| ) ##NO_TEXT
+  ( line = replace( val = text-039 sub = '&1' with = lv_nfaid ) && lc_br )
+  ( line = text-040 && lc_br )
   ( line = |<br/>| )
-  ( line = |Regards,<br/>| ) ##NO_TEXT
-  ( line = |Procurement Team| ) ##NO_TEXT
+  ( line = text-033 && lc_br2 )
+  ( line = text-034 )
       ).
     when 'MAIL5'.
       lt_mailtxt = value #(
         ( line = |<HTML> <BODY>| )
         ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
         ( line = |<br/>| )
-        ( line = |NFA { i_nfaid } has been rejected by { i_approver } due to the following reason:</br>| ) ##NO_TEXT
+        ( line = replace( val = replace( val = text-041 sub = '&1' with = i_nfaid ) sub = '&2' with = i_approver ) && lc_br )
         ( line = |{ i_reason }.</br>| )
         ( line = |<br/>| )
-        ( line = |Regards,<br/>| ) ##NO_TEXT
-        ( line = |Procurement Team| ) ##NO_TEXT
+        ( line = text-033 && lc_br2 )
+        ( line = text-034 )
       ).
     when 'MAIL6'.
       lt_mailtxt = value #(
         ( line = |<HTML> <BODY>| )
         ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
         ( line = |<br/>| )
-        ( line = |A Query has been raised by { i_approver }.</br>| ) ##NO_TEXT
-        ( line = |Please provide the required response on time to process it further.</br>| ) ##NO_TEXT
+        ( line = replace( val = text-042 sub = '&1' with = i_approver ) && lc_br )
+        ( line = text-043 && lc_br )
         ( line = |<br/>| )
-        ( line = |Regards,<br/>| ) ##NO_TEXT
-        ( line = |Procurement Team| ) ##NO_TEXT
+        ( line = text-033 && lc_br2 )
+        ( line = text-034 )
       ).
   endcase.
 

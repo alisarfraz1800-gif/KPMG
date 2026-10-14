@@ -362,10 +362,12 @@ copy_data_to_ref(
       lv_EVENT = |%{ lv_EVENT }%|.
       select distinct EVENT_NO as EVENTid  from ZRFQ_HEADER as a where event_no like @lv_EVENT
                 AND RFQWTPR = 'X'
+        order by event_no
         into table @et_entityset.
     else.
       select distinct EVENT_NO as EVENTid from ZRFQ_HEADER as a where
        RFQWTPR = 'X'
+        order by event_no
         into table @et_entityset.
     endif.
 
@@ -633,7 +635,7 @@ data : lv_date TYPE sy-datum,
                                                               e_userrole  = lv_userrole
                                                               e_ccode     = lv_bukrs ).
     if lv_loginid is not initial.
-      select single * from zapp_roles into @data(ls_role) where id = @lv_loginid and role = 'ADMIN' and application = 'APP.03'.
+      select single @abap_true from zapp_roles into @data(lv_role_exists) where id = @lv_loginid and role = 'ADMIN' and application = 'APP.03'.
       if sy-subrc is not initial.
         DATA(BUYERROLE) = 'X'.
         translate lv_loginid to upper case.
@@ -641,7 +643,8 @@ data : lv_date TYPE sy-datum,
       endif.
     endif.
 
-    select * from zrfq_user_master into table @data(lt_usermaster) where usertype = 'BUYER'.
+*   LT_USERMASTER is not used anywhere in this method - read removed (ATC)
+*    select * from zrfq_user_master into table @data(lt_usermaster) where usertype = 'BUYER'.
 
 
        try.
@@ -834,9 +837,13 @@ ENDLOOP.
     if iv_search_string is not initial.
       lv_banfn  = iv_search_string.
       lv_banfn = |%{ lv_banfn }%|.
-      select distinct banfn as prnumber , bnfpo as pritem from eban as a where banfn like @lv_banfn into table @et_entityset.
+      select distinct banfn as prnumber , bnfpo as pritem from eban as a where banfn like @lv_banfn
+        order by banfn, bnfpo
+        into table @et_entityset.
     else.
-      select distinct banfn as prnumber , bnfpo as pritem from eban as a into table @et_entityset.
+      select distinct banfn as prnumber , bnfpo as pritem from eban as a where banfn <> @space
+        order by banfn, bnfpo
+        into table @et_entityset.
     endif.
 
 **- skip/top logic to restrict no of records
@@ -996,15 +1003,23 @@ ENDLOOP.
 
     if iv_search_string is not initial.
       lv_ekgrp = |%{ iv_search_string }%|.
-      select distinct a~ekgrp  as PurchaseGroup,
-                      b~eknam as text
-       from eban as a   inner join t024 as b on ( b~ekgrp = a~ekgrp ) where a~ekgrp like @lv_ekgrp or b~eknam like @lv_ekgrp into table @et_entityset.
+      select ekgrp, eknam from t024 into table @data(lt_t024)
+        where ekgrp like @lv_ekgrp or eknam like @lv_ekgrp.
     else.
-      select distinct a~ekgrp  as PurchaseGroup,
-                    b~eknam as text
+      select ekgrp, eknam from t024 into table @lt_t024
+        where ekgrp <> @space.
+    endif.
 
-     from eban as a inner join t024 as b on ( b~ekgrp = a~ekgrp )  into table @et_entityset.
-
+    if lt_t024 is not initial.
+      select distinct ekgrp from eban into table @data(lt_eban_grp)
+        where ekgrp <> @space.
+      loop at lt_t024 into data(ls_t024).
+        if line_exists( lt_eban_grp[ ekgrp = ls_t024-ekgrp ] ).
+          append value #( purchasegroup = ls_t024-ekgrp
+                          text          = ls_t024-eknam ) to et_entityset.
+        endif.
+      endloop.
+      sort et_entityset by purchasegroup text.
     endif.
 
 
@@ -1097,10 +1112,12 @@ ENDLOOP.
       lv_rfq = |%{ lv_rfq }%|.
       select distinct rfqid as rfqid  from ZRFQ_HEADER as a where RFQID like @lv_RFQ
         AND RFQWTPR = 'X'
+        order by rfqid
         into table @et_entityset.
     else.
       select distinct rfqid as rfqid  from ZRFQ_HEADER as a where
        RFQWTPR = 'X'
+        order by rfqid
         into table @et_entityset.
     endif.
 

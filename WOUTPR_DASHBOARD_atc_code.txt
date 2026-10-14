@@ -1,0 +1,1114 @@
+class ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT definition
+  public
+  inheriting from ZCL_ZRFQ_WOUTPR_DASHBO_DPC
+  create public .
+
+public section.
+
+  methods /IWBEP/IF_MGW_APPL_SRV_RUNTIME~CREATE_DEEP_ENTITY
+    redefinition .
+  methods /IWBEP/IF_MGW_APPL_SRV_RUNTIME~CREATE_STREAM
+    redefinition .
+  methods /IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_EXPANDED_ENTITY
+    redefinition .
+  methods /IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_EXPANDED_ENTITYSET
+    redefinition .
+  methods /IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_STREAM
+    redefinition .
+protected section.
+
+  methods EVENTID_F4SET_GET_ENTITYSET
+    redefinition .
+  methods PRHEADERSET_GET_ENTITY
+    redefinition .
+  methods PRHEADERSET_GET_ENTITYSET
+    redefinition .
+  methods PRIORITY_DDSET_GET_ENTITY
+    redefinition .
+  methods PRIORITY_DDSET_GET_ENTITYSET
+    redefinition .
+  methods PRITEMSET_GET_ENTITY
+    redefinition .
+  methods PRITEMSET_GET_ENTITYSET
+    redefinition .
+  methods PRNUMBER_F4SET_GET_ENTITY
+    redefinition .
+  methods PRNUMBER_F4SET_GET_ENTITYSET
+    redefinition .
+  methods PR_RFQ_DDSET_GET_ENTITY
+    redefinition .
+  methods PR_RFQ_DDSET_GET_ENTITYSET
+    redefinition .
+  methods PURCHASEGRP_F4SE_GET_ENTITY
+    redefinition .
+  methods PURCHASEGRP_F4SE_GET_ENTITYSET
+    redefinition .
+  methods RFQID_DDSET_GET_ENTITY
+    redefinition .
+  methods RFQID_DDSET_GET_ENTITYSET
+    redefinition .
+  methods EVENTID_F4SET_GET_ENTITY
+    redefinition .
+private section.
+ENDCLASS.
+
+
+
+CLASS ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->/IWBEP/IF_MGW_APPL_SRV_RUNTIME~CREATE_DEEP_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING(optional)
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING(optional)
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING(optional)
+* | [--->] IO_DATA_PROVIDER               TYPE REF TO /IWBEP/IF_MGW_ENTRY_PROVIDER
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH(optional)
+* | [--->] IO_EXPAND                      TYPE REF TO /IWBEP/IF_MGW_ODATA_EXPAND
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY_C(optional)
+* | [<---] ER_DEEP_ENTITY                 TYPE REF TO DATA
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~CREATE_DEEP_ENTITY.
+    types : begin of ty_data.
+              include type    ZCL_ZRFQ_WOUTPR_DASHBO_mpc=>ts_prheader.
+    types :   HeaderToItemNP     type table of ZCL_ZRFQ_WOUTPR_DASHBO_mpc=>ts_pritem with default key,
+
+            end of ty_data.
+        data : ls_data TYPE ty_data.
+
+            data : lo_facade         type ref to /iwbep/if_mgw_dp_int_facade,
+           lv_loginid        type string,
+           lv_logintype      type char1,
+           lt_request_header type tihttpnvp,
+           ls_request_header like line of lt_request_header.
+
+
+  io_data_provider->read_entry_data(
+    importing
+      es_data =  LS_DATA
+  ).
+*  catch /iwbep/cx_mgw_tech_exception. " mgw technical exception
+
+ IF LS_DATA IS NOT INITIAL.
+
+LOOP AT LS_DATA-headertoitemnp ASSIGNING FIELD-SYMBOL(<FS>).
+
+  DATA(KEY) = | { <FS>-prnumber && <FS>-PRLINEITEM } |.
+  CONDENSE KEY.
+
+  UPDATE ZRFQ_ITEM SET prnumber = <FS>-prnumber pritem = <FS>-prlineitem pritmkey = KEY
+  WHERE event_no = <FS>-eventid
+        AND rfqid = <FS>-rfqid AND
+        lineitem = <FS>-rfqlineitem.
+IF SY-SUBRC = 0.
+COMMIT WORK.
+ENDIF.
+CLEAR : KEY.
+  ENDLOOP.
+
+   ENDIF.
+copy_data_to_ref(
+  exporting
+    is_data = LS_DATA
+  changing
+    cr_data = er_deep_entity
+).
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->/IWBEP/IF_MGW_APPL_SRV_RUNTIME~CREATE_STREAM
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING(optional)
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING(optional)
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING(optional)
+* | [--->] IS_MEDIA_RESOURCE              TYPE        TY_S_MEDIA_RESOURCE
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH(optional)
+* | [--->] IV_SLUG                        TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY_C(optional)
+* | [<---] ER_ENTITY                      TYPE REF TO DATA
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~CREATE_STREAM.
+**try.
+*CALL METHOD SUPER->/IWBEP/IF_MGW_APPL_SRV_RUNTIME~CREATE_STREAM
+*  EXPORTING
+**    iv_entity_name          =
+**    iv_entity_set_name      =
+**    iv_source_name          =
+*    IS_MEDIA_RESOURCE       =
+**    it_key_tab              =
+**    it_navigation_path      =
+*    IV_SLUG                 =
+**    io_tech_request_context =
+**  importing
+**    er_entity               =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->/IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_EXPANDED_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING(optional)
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING(optional)
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING(optional)
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH(optional)
+* | [--->] IO_EXPAND                      TYPE REF TO /IWBEP/IF_MGW_ODATA_EXPAND(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [<---] ER_ENTITY                      TYPE REF TO DATA
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [<---] ET_EXPANDED_CLAUSES            TYPE        STRING_TABLE
+* | [<---] ET_EXPANDED_TECH_CLAUSES       TYPE        STRING_TABLE
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_EXPANDED_ENTITY.
+**try.
+*CALL METHOD SUPER->/IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_EXPANDED_ENTITY
+**  exporting
+**    iv_entity_name           =
+**    iv_entity_set_name       =
+**    iv_source_name           =
+**    it_key_tab               =
+**    it_navigation_path       =
+**    io_expand                =
+**    io_tech_request_context  =
+**  importing
+**    er_entity                =
+**    es_response_context      =
+**    et_expanded_clauses      =
+**    et_expanded_tech_clauses =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->/IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_EXPANDED_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING(optional)
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING(optional)
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING(optional)
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION(optional)
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER(optional)
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH(optional)
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR(optional)
+* | [--->] IV_FILTER_STRING               TYPE        STRING(optional)
+* | [--->] IV_SEARCH_STRING               TYPE        STRING(optional)
+* | [--->] IO_EXPAND                      TYPE REF TO /IWBEP/IF_MGW_ODATA_EXPAND(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ER_ENTITYSET                   TYPE REF TO DATA
+* | [<---] ET_EXPANDED_CLAUSES            TYPE        STRING_TABLE
+* | [<---] ET_EXPANDED_TECH_CLAUSES       TYPE        STRING_TABLE
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_EXPANDED_ENTITYSET.
+**try.
+*CALL METHOD SUPER->/IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_EXPANDED_ENTITYSET
+**  exporting
+**    iv_entity_name           =
+**    iv_entity_set_name       =
+**    iv_source_name           =
+**    it_filter_select_options =
+**    it_order                 =
+**    is_paging                =
+**    it_navigation_path       =
+**    it_key_tab               =
+**    iv_filter_string         =
+**    iv_search_string         =
+**    io_expand                =
+**    io_tech_request_context  =
+**  importing
+**    er_entityset             =
+**    et_expanded_clauses      =
+**    et_expanded_tech_clauses =
+**    es_response_context      =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->/IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_STREAM
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING(optional)
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING(optional)
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING(optional)
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [<---] ER_STREAM                      TYPE REF TO DATA
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method /IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_STREAM.
+**try.
+*CALL METHOD SUPER->/IWBEP/IF_MGW_APPL_SRV_RUNTIME~GET_STREAM
+**  exporting
+**    iv_entity_name          =
+**    iv_entity_set_name      =
+**    iv_source_name          =
+**    it_key_tab              =
+**    it_navigation_path      =
+**    io_tech_request_context =
+**  importing
+**    er_stream               =
+**    es_response_context     =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->EVENTID_F4SET_GET_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_REQUEST_OBJECT              TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TS_EVENTID_F4
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method EVENTID_F4SET_GET_ENTITY.
+**try.
+*CALL METHOD SUPER->EVENTID_F4SET_GET_ENTITY
+*  EXPORTING
+*    IV_ENTITY_NAME          =
+*    IV_ENTITY_SET_NAME      =
+*    IV_SOURCE_NAME          =
+*    IT_KEY_TAB              =
+**    io_request_object       =
+**    io_tech_request_context =
+*    IT_NAVIGATION_PATH      =
+**  importing
+**    er_entity               =
+**    es_response_context     =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->EVENTID_F4SET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TT_EVENTID_F4
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method EVENTID_F4SET_GET_ENTITYSET.
+
+ data: lo_facade    type ref to /iwbep/if_mgw_dp_int_facade.
+
+    data: lv_top           type string,
+          lv_skip          type i,
+          lv_search_string type string,
+          lv_EVENT         type  string,
+          r_EVENT          type range of zrfq_header-event_no,
+          l_EVENT          like line of r_EVENT.
+
+**-- get request header object reference
+    lo_facade ?= /iwbep/if_mgw_conv_srv_runtime~get_dp_facade( ).
+
+**- get number of records requested
+    clear: lv_top,lv_skip.
+    lv_top = io_tech_request_context->get_top( ).
+
+**- get number of lines that should be skipped
+    lv_skip = io_tech_request_context->get_skip( ).
+    lv_top = lv_top + lv_skip.
+
+    if iv_search_string is not initial.
+      lv_EVENT  = iv_search_string.
+      lv_EVENT = |%{ lv_EVENT }%|.
+      select distinct EVENT_NO as EVENTid  from ZRFQ_HEADER as a where event_no like @lv_EVENT
+                AND RFQWTPR = 'X'
+        into table @et_entityset.
+    else.
+      select distinct EVENT_NO as EVENTid from ZRFQ_HEADER as a where
+       RFQWTPR = 'X'
+        into table @et_entityset.
+    endif.
+
+**- skip/top logic to restrict no of records
+    if lv_skip is not initial and lv_skip <> '0'.
+      delete et_entityset from 1 to lv_skip.
+    endif.
+
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PRHEADERSET_GET_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_REQUEST_OBJECT              TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TS_PRHEADER
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PRHEADERSET_GET_ENTITY.
+**try.
+*CALL METHOD SUPER->PRHEADERSET_GET_ENTITY
+*  EXPORTING
+*    IV_ENTITY_NAME          =
+*    IV_ENTITY_SET_NAME      =
+*    IV_SOURCE_NAME          =
+*    IT_KEY_TAB              =
+**    io_request_object       =
+**    io_tech_request_context =
+*    IT_NAVIGATION_PATH      =
+**  importing
+**    er_entity               =
+**    es_response_context     =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PRHEADERSET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TT_PRHEADER
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PRHEADERSET_GET_ENTITYSET.
+**try.
+*CALL METHOD SUPER->PRHEADERSET_GET_ENTITYSET
+*  EXPORTING
+*    IV_ENTITY_NAME           =
+*    IV_ENTITY_SET_NAME       =
+*    IV_SOURCE_NAME           =
+*    IT_FILTER_SELECT_OPTIONS =
+*    IS_PAGING                =
+*    IT_KEY_TAB               =
+*    IT_NAVIGATION_PATH       =
+*    IT_ORDER                 =
+*    IV_FILTER_STRING         =
+*    IV_SEARCH_STRING         =
+**    io_tech_request_context  =
+**  importing
+**    et_entityset             =
+**    es_response_context      =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PRIORITY_DDSET_GET_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_REQUEST_OBJECT              TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TS_PRIORITY_DD
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PRIORITY_DDSET_GET_ENTITY.
+**try.
+*CALL METHOD SUPER->PRIORITY_DDSET_GET_ENTITY
+*  EXPORTING
+*    IV_ENTITY_NAME          =
+*    IV_ENTITY_SET_NAME      =
+*    IV_SOURCE_NAME          =
+*    IT_KEY_TAB              =
+**    io_request_object       =
+**    io_tech_request_context =
+*    IT_NAVIGATION_PATH      =
+**  importing
+**    er_entity               =
+**    es_response_context     =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PRIORITY_DDSET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TT_PRIORITY_DD
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PRIORITY_DDSET_GET_ENTITYSET.
+**try.
+*CALL METHOD SUPER->PRIORITY_DDSET_GET_ENTITYSET
+*  EXPORTING
+*    IV_ENTITY_NAME           =
+*    IV_ENTITY_SET_NAME       =
+*    IV_SOURCE_NAME           =
+*    IT_FILTER_SELECT_OPTIONS =
+*    IS_PAGING                =
+*    IT_KEY_TAB               =
+*    IT_NAVIGATION_PATH       =
+*    IT_ORDER                 =
+*    IV_FILTER_STRING         =
+*    IV_SEARCH_STRING         =
+**    io_tech_request_context  =
+**  importing
+**    et_entityset             =
+**    es_response_context      =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PRITEMSET_GET_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_REQUEST_OBJECT              TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TS_PRITEM
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PRITEMSET_GET_ENTITY.
+**try.
+*CALL METHOD SUPER->PRITEMSET_GET_ENTITY
+*  EXPORTING
+*    IV_ENTITY_NAME          =
+*    IV_ENTITY_SET_NAME      =
+*    IV_SOURCE_NAME          =
+*    IT_KEY_TAB              =
+**    io_request_object       =
+**    io_tech_request_context =
+*    IT_NAVIGATION_PATH      =
+**  importing
+**    er_entity               =
+**    es_response_context     =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PRITEMSET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TT_PRITEM
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PRITEMSET_GET_ENTITYSET.
+
+  data : er_entity type  ZCL_ZRFQ_WOUTPR_DASHBO_mpc=>ts_pritem.
+
+
+    data :
+
+           r_ekgrp    type range of ekko-ekgrp,
+           l_ekgrp    like line of r_ekgrp,
+           r_rfq      type range of zrfq_header-rfqid,
+           l_rfq      like line of r_rfq,
+           r_event    type RANGE OF zrfq_header-event_no,
+           l_event    like LINE OF r_event,
+           r_date    TYPE RANGE OF zrfq_header-createdon,
+           l_date like line of r_date.
+
+    data: lo_facade    type ref to /iwbep/if_mgw_dp_int_facade,
+          lv_loginid   type string,
+          lv_logintype type char1,
+          lv_userrole  type char1,
+          lv_bukrs     type bukrs.
+
+
+data : lv_date TYPE sy-datum,
+      lv_time     TYPE sy-uzeit,
+      lv_upd   TYPE timestampl, " or TIMESTAMP for short form
+      lv_sendback   TYPE timestampl, " or TIMESTAMP for short form
+      lv_tzone    TYPE timezone.   " Time zone (e.g., 'UTC', sy-zonlo)
+
+
+**-- Get Request Header Object Reference
+    lo_facade ?= /iwbep/if_mgw_conv_srv_runtime~get_dp_facade( ).
+
+**-- Get Parameters
+    zcl_supp_portal_utility=>read_header_parameter( exporting io_facade   = lo_facade
+                                                    importing e_logintype = lv_logintype
+                                                              e_loginid   = lv_loginid
+                                                              e_userrole  = lv_userrole
+                                                              e_ccode     = lv_bukrs ).
+    if lv_loginid is not initial.
+      select single * from zapp_roles into @data(ls_role) where id = @lv_loginid and role = 'ADMIN' and application = 'APP.03'.
+      if sy-subrc is not initial.
+        DATA(BUYERROLE) = 'X'.
+        translate lv_loginid to upper case.
+        select single id, name from zrfq_user_master into @data(ls_ID) where id = @lv_loginid.
+      endif.
+    endif.
+
+    select * from zrfq_user_master into table @data(lt_usermaster) where usertype = 'BUYER'.
+
+
+       try.
+        data(ls_filter) = it_filter_select_options[ property = 'RFQID' ].
+        loop at ls_filter-select_options into data(ls_selopt).
+          l_RFQ-low = ls_selopt-low.
+          l_RFQ-sign   = 'I'.
+          l_RFQ-option = 'EQ'.
+          append  l_RFQ to r_RFQ.
+          clear : ls_selopt.
+        endloop.
+        clear : ls_filter.
+      catch cx_sy_itab_line_not_found.
+    endtry.
+
+
+    try.
+        ls_filter = it_filter_select_options[ property = 'EventID' ].
+        loop at ls_filter-select_options into ls_selopt.
+          l_EVENT-low = ls_selopt-low.
+          l_EVENT-sign   = 'I'.
+          l_EVENT-option = 'EQ'.
+          append  l_EVENT to r_EVENT.
+          clear : ls_selopt.
+        endloop.
+        clear : ls_filter.
+      catch cx_sy_itab_line_not_found.
+    endtry.
+
+
+
+    try.
+        ls_filter = it_filter_select_options[ property = 'PurGroup' ].
+        loop at ls_filter-select_options into ls_selopt.
+          l_ekgrp-low = ls_selopt-low.
+          l_ekgrp-sign   = 'I'.
+          l_ekgrp-option = 'EQ'.
+          append  l_ekgrp to r_ekgrp.
+          clear : ls_selopt.
+        endloop.
+        clear : ls_filter.
+      catch cx_sy_itab_line_not_found.
+    endtry.
+
+
+
+    try.
+        ls_filter = it_filter_select_options[ property = 'RFQDate' ].
+        ls_selopt = ls_filter-select_options[ 1 ].
+        data(rfq_date) = ls_selopt-low.
+        clear : ls_filter,ls_selopt.
+      catch cx_sy_itab_line_not_found.
+    endtry.
+
+
+
+
+
+  SELECT FROM zrfq_header as a inner join zrfq_item as b on ( b~event_no = a~event_no and b~rfqid = a~rfqid )
+    FIELDS
+
+    a~EVENT_NO,
+    a~RFQID,
+    a~RFQSTATUS,
+    a~createdon,
+    b~LINEITEM,
+    b~LINETYPE,
+    LTRIM( b~MATNR, '0' ) AS MATNR,
+    b~MAKTX,
+    b~RFQ_QTY,
+    b~uom,
+    b~PURGROUP,
+    b~werks,
+    b~plant_Add
+    where
+    a~EVENT_NO in @r_event
+    and a~rfqid in @r_rfq
+    and b~purgroup in @r_ekgrp
+*    and a~createdon EQ @RFQ_DATE
+    AND
+     A~RFQWTPR = 'X'
+   into TABLE @DATA(it_data).
+
+if it_data[] is  NOT INITIAL.
+
+LOOP AT IT_DATA ASSIGNING FIELD-SYMBOL(<FS>).
+
+ER_ENTITY-EventID = <FS>-event_no.
+ER_ENTITY-rfqid = <FS>-rfqid.
+ER_ENTITY-rfqlineitem = <FS>-lineitem.
+ER_ENTITY-rfqdate = <FS>-createdon.
+ER_ENTITY-CREATEDON = <FS>-createdon.
+ER_ENTITY-prrfqstatus = <FS>-rfqstatus.
+ER_ENTITY-prtype = <FS>-linetype.
+ER_ENTITY-materialcode = <FS>-matnr.
+ER_ENTITY-materialdescription = <FS>-maktx.
+ER_ENTITY-prqty = <FS>-rfq_qty.
+ER_ENTITY-uom = <FS>-uom.
+ER_ENTITY-purgroup = <FS>-purgroup.
+SELECT SINGLE FROM T024 FIELDS EKNAM WHERE EKGRP = @ER_ENTITY-purgroup INTO @ER_ENTITY-purchasegrpdesc .
+ER_ENTITY-plantcode = <FS>-werks.
+ER_ENTITY-plantaddress = <FS>-plant_add.
+APPEND er_entity to et_entityset.
+CLEAR er_entity.
+
+ENDLOOP.
+  endif.
+
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PRNUMBER_F4SET_GET_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_REQUEST_OBJECT              TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TS_PRNUMBER_F4
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PRNUMBER_F4SET_GET_ENTITY.
+**try.
+*CALL METHOD SUPER->PRNUMBER_F4SET_GET_ENTITY
+*  EXPORTING
+*    IV_ENTITY_NAME          =
+*    IV_ENTITY_SET_NAME      =
+*    IV_SOURCE_NAME          =
+*    IT_KEY_TAB              =
+**    io_request_object       =
+**    io_tech_request_context =
+*    IT_NAVIGATION_PATH      =
+**  importing
+**    er_entity               =
+**    es_response_context     =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PRNUMBER_F4SET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TT_PRNUMBER_F4
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PRNUMBER_F4SET_GET_ENTITYSET.
+
+ data: lo_facade    type ref to /iwbep/if_mgw_dp_int_facade.
+
+    data: lv_top           type string,
+          lv_skip          type i,
+          lv_search_string type string,
+          lv_banfn         type  string,
+          r_banfn          type range of eban-banfn,
+          l_banfn          like line of r_banfn.
+
+**-- get request header object reference
+    lo_facade ?= /iwbep/if_mgw_conv_srv_runtime~get_dp_facade( ).
+
+**- get number of records requested
+    clear: lv_top,lv_skip.
+    lv_top = io_tech_request_context->get_top( ).
+
+**- get number of lines that should be skipped
+    lv_skip = io_tech_request_context->get_skip( ).
+    lv_top = lv_top + lv_skip.
+
+    if iv_search_string is not initial.
+      lv_banfn  = iv_search_string.
+      lv_banfn = |%{ lv_banfn }%|.
+      select distinct banfn as prnumber , bnfpo as pritem from eban as a where banfn like @lv_banfn into table @et_entityset.
+    else.
+      select distinct banfn as prnumber , bnfpo as pritem from eban as a into table @et_entityset.
+    endif.
+
+**- skip/top logic to restrict no of records
+    if lv_skip is not initial and lv_skip <> '0'.
+      delete et_entityset from 1 to lv_skip.
+    endif.
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PR_RFQ_DDSET_GET_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_REQUEST_OBJECT              TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TS_PR_RFQ_DD
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PR_RFQ_DDSET_GET_ENTITY.
+**try.
+*CALL METHOD SUPER->PR_RFQ_DDSET_GET_ENTITY
+*  EXPORTING
+*    IV_ENTITY_NAME          =
+*    IV_ENTITY_SET_NAME      =
+*    IV_SOURCE_NAME          =
+*    IT_KEY_TAB              =
+**    io_request_object       =
+**    io_tech_request_context =
+*    IT_NAVIGATION_PATH      =
+**  importing
+**    er_entity               =
+**    es_response_context     =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PR_RFQ_DDSET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TT_PR_RFQ_DD
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PR_RFQ_DDSET_GET_ENTITYSET.
+**try.
+*CALL METHOD SUPER->PR_RFQ_DDSET_GET_ENTITYSET
+*  EXPORTING
+*    IV_ENTITY_NAME           =
+*    IV_ENTITY_SET_NAME       =
+*    IV_SOURCE_NAME           =
+*    IT_FILTER_SELECT_OPTIONS =
+*    IS_PAGING                =
+*    IT_KEY_TAB               =
+*    IT_NAVIGATION_PATH       =
+*    IT_ORDER                 =
+*    IV_FILTER_STRING         =
+*    IV_SEARCH_STRING         =
+**    io_tech_request_context  =
+**  importing
+**    et_entityset             =
+**    es_response_context      =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PURCHASEGRP_F4SE_GET_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_REQUEST_OBJECT              TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TS_PURCHASEGRP_F4
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PURCHASEGRP_F4SE_GET_ENTITY.
+**try.
+*CALL METHOD SUPER->PURCHASEGRP_F4SE_GET_ENTITY
+*  EXPORTING
+*    IV_ENTITY_NAME          =
+*    IV_ENTITY_SET_NAME      =
+*    IV_SOURCE_NAME          =
+*    IT_KEY_TAB              =
+**    io_request_object       =
+**    io_tech_request_context =
+*    IT_NAVIGATION_PATH      =
+**  importing
+**    er_entity               =
+**    es_response_context     =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->PURCHASEGRP_F4SE_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TT_PURCHASEGRP_F4
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method PURCHASEGRP_F4SE_GET_ENTITYSET.
+    data : lv_ekgrp type eban-ekgrp.
+    data: lv_top  type string,
+          lv_skip type i.
+**- Get number of records requested
+    clear: lv_top,lv_skip.
+    lv_top = io_tech_request_context->get_top( ).
+
+**- Get number of lines that should be skipped
+    lv_skip = io_tech_request_context->get_skip( ).
+    lv_top = lv_top + lv_skip.
+
+    if iv_search_string is not initial.
+      lv_ekgrp = |%{ iv_search_string }%|.
+      select distinct a~ekgrp  as PurchaseGroup,
+                      b~eknam as text
+       from eban as a   inner join t024 as b on ( b~ekgrp = a~ekgrp ) where a~ekgrp like @lv_ekgrp or b~eknam like @lv_ekgrp into table @et_entityset.
+    else.
+      select distinct a~ekgrp  as PurchaseGroup,
+                    b~eknam as text
+
+     from eban as a inner join t024 as b on ( b~ekgrp = a~ekgrp )  into table @et_entityset.
+
+    endif.
+
+
+**- Skip/Top Logic to Restrict No Of Records
+    if lv_skip is not initial and lv_skip <> '0'.
+      delete et_entityset from 1 to lv_skip.
+    endif.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->RFQID_DDSET_GET_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_REQUEST_OBJECT              TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TS_RFQID_DD
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method RFQID_DDSET_GET_ENTITY.
+**try.
+*CALL METHOD SUPER->RFQID_DDSET_GET_ENTITY
+*  EXPORTING
+*    IV_ENTITY_NAME          =
+*    IV_ENTITY_SET_NAME      =
+*    IV_SOURCE_NAME          =
+*    IT_KEY_TAB              =
+**    io_request_object       =
+**    io_tech_request_context =
+*    IT_NAVIGATION_PATH      =
+**  importing
+**    er_entity               =
+**    es_response_context     =
+*    .
+**  catch /iwbep/cx_mgw_busi_exception.
+**  catch /iwbep/cx_mgw_tech_exception.
+**endtry.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_WOUTPR_DASHBO_DPC_EXT->RFQID_DDSET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_WOUTPR_DASHBO_MPC=>TT_RFQID_DD
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method RFQID_DDSET_GET_ENTITYSET.
+
+ data: lo_facade    type ref to /iwbep/if_mgw_dp_int_facade.
+
+    data: lv_top           type string,
+          lv_skip          type i,
+          lv_search_string type string,
+          lv_rfq         type  string,
+          r_rfq          type range of zrfq_header-rfqid,
+          l_rfq          like line of r_rfq.
+
+**-- get request header object reference
+    lo_facade ?= /iwbep/if_mgw_conv_srv_runtime~get_dp_facade( ).
+
+**- get number of records requested
+    clear: lv_top,lv_skip.
+    lv_top = io_tech_request_context->get_top( ).
+
+**- get number of lines that should be skipped
+    lv_skip = io_tech_request_context->get_skip( ).
+    lv_top = lv_top + lv_skip.
+
+    if iv_search_string is not initial.
+      lv_rfq  = iv_search_string.
+      lv_rfq = |%{ lv_rfq }%|.
+      select distinct rfqid as rfqid  from ZRFQ_HEADER as a where RFQID like @lv_RFQ
+        AND RFQWTPR = 'X'
+        into table @et_entityset.
+    else.
+      select distinct rfqid as rfqid  from ZRFQ_HEADER as a where
+       RFQWTPR = 'X'
+        into table @et_entityset.
+    endif.
+
+**- skip/top logic to restrict no of records
+    if lv_skip is not initial and lv_skip <> '0'.
+      delete et_entityset from 1 to lv_skip.
+    endif.
+
+
+  endmethod.
+ENDCLASS.

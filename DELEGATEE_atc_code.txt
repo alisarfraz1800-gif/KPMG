@@ -1,0 +1,462 @@
+class ZCL_ZRFQ_DELEGATEE_DPC_EXT definition
+  public
+  inheriting from ZCL_ZRFQ_DELEGATEE_DPC
+  create public .
+
+public section.
+protected section.
+
+  methods DELEGATEEF4SET_GET_ENTITYSET
+    redefinition .
+  methods NFAF4SET_GET_ENTITYSET
+    redefinition .
+  methods PURGRPF4SET_GET_ENTITYSET
+    redefinition .
+  methods RFQF4SET_GET_ENTITYSET
+    redefinition .
+  methods SETDELEGATEESET_CREATE_ENTITY
+    redefinition .
+  methods SETDELEGATEESET_GET_ENTITY
+    redefinition .
+  methods SETDELEGATEESET_UPDATE_ENTITY
+    redefinition .
+  methods SETDELEGATEESET_GET_ENTITYSET
+    redefinition .
+private section.
+ENDCLASS.
+
+
+
+CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_DELEGATEE_DPC_EXT->DELEGATEEF4SET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_DELEGATEE_MPC=>TT_DELEGATEEF4
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method delegateef4set_get_entityset.
+    data lv_filter type string.
+    if line_exists( it_filter_select_options[ property = 'Type' ] ) .
+      data(lv_type) = it_filter_select_options[ property = 'Type' ]-select_options[ 1 ]-low.
+    endif.
+    if iv_search_string is not initial.
+      lv_filter = |%{ iv_search_string }%|.
+    endif.
+    if lv_type = 'NR'.
+      if lv_filter is not initial.
+        select
+          id,
+          Name
+          from zrfq_user_master
+          into table @et_entityset
+          where usertype = 'BUYER'
+            and ( id like @lv_filter
+               or Name like @lv_filter ).
+      else.
+        select
+          id,
+          Name
+          from zrfq_user_master
+          into table @et_entityset
+          where usertype = 'BUYER'.
+      endif.
+    else.
+      if lv_filter is not initial.
+        select
+          id,
+          Name
+          from zrfq_user_master
+          into table @et_entityset
+          where usertype = 'APPROVER'
+            and ( id like @lv_filter
+               or Name like @lv_filter ).
+      else.
+        select
+          id,
+          Name
+          from zrfq_user_master
+          into table @et_entityset
+          where usertype = 'APPROVER'.
+      endif.
+    endif.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_DELEGATEE_DPC_EXT->NFAF4SET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_DELEGATEE_MPC=>TT_NFAF4
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method nfaf4set_get_entityset.
+    data : lv_filter type string.
+    if iv_search_string is not initial.
+      lv_filter = |%{ iv_search_string }%|.
+      select nfa_id from znfa_header into table et_entityset where nfa_id like lv_filter.
+    else.
+      select nfa_id from znfa_header into table et_entityset.
+    endif.
+    SORT et_entityset by nfa_id DESCENDING.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_DELEGATEE_DPC_EXT->PURGRPF4SET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_DELEGATEE_MPC=>TT_PURGRPF4
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method purgrpf4set_get_entityset.
+    data lv_filter type string.
+    if iv_search_string is not initial.
+      lv_filter = |%{ iv_search_string }%|.
+      translate lv_filter to upper case.
+      select pur_grp , description from zdepartment_det into table @et_entityset where pur_grp like @lv_filter or description like @lv_filter.
+    else.
+      select pur_grp , description from zdepartment_det into table @et_entityset.
+    endif.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_DELEGATEE_DPC_EXT->RFQF4SET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_DELEGATEE_MPC=>TT_RFQF4
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method rfqf4set_get_entityset.
+    data : lv_filter type string.
+    if iv_search_string is not initial.
+      lv_filter = |%{ iv_search_string }%|.
+    select rfqid from zrfq_header into table et_entityset WHERE rfqid like lv_filter.
+      else.
+    select rfqid from zrfq_header into table et_entityset.
+    endif.
+    sort et_entityset by rfqid descending.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_DELEGATEE_DPC_EXT->SETDELEGATEESET_CREATE_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY_C(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IO_DATA_PROVIDER               TYPE REF TO /IWBEP/IF_MGW_ENTRY_PROVIDER(optional)
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_DELEGATEE_MPC=>TS_SETDELEGATEE
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method setdelegateeset_create_entity.
+    data : ls_data         type zcl_zrfq_delegatee_mpc=>ts_setdelegatee,
+           ls_delegatee    type zdelegatee,
+           ls_nfa_apr_deli type znfa_apr_deli.
+
+
+    io_data_provider->read_entry_data( importing es_data = ls_data ).
+    if ls_data is not initial.
+      data(lv_rfqid) = ls_data-rfqid.
+      data(lv_nfaid) = ls_data-nfaid.
+      data(lv_delegatee) = ls_data-delegatee.
+      data(lv_pur_grp) = ls_data-pur_grp.
+
+      condense : lv_rfqid, lv_nfaid, lv_pur_grp.
+      if lv_rfqid is not initial.
+        if lv_delegatee is not initial.
+          select single * from zrfq_header into @data(ls_rfq_header) where rfqid = @lv_rfqid.
+          if ls_rfq_header is not initial.
+            ls_rfq_header-pre_delegatee = ls_rfq_header-active_del.
+            ls_rfq_header-active_del = lv_delegatee.
+            modify zrfq_header from ls_rfq_header.
+            ls_delegatee-rfqid = lv_rfqid.
+            ls_delegatee-delegatee = lv_delegatee.
+            ls_delegatee-start_date = ls_data-startdate.
+            ls_delegatee-end_date = ls_data-enddate.
+            modify zdelegatee from ls_delegatee.
+            if sy-subrc is initial.
+              er_entity-rfqid = lv_rfqid.
+            endif.
+          endif.
+        endif.
+      endif.
+      if lv_nfaid is not initial.
+        if lv_delegatee is not initial.
+          select single * from znfa_header into @data(ls_nfa_header) where nfa_id = @lv_nfaid.
+          if ls_nfa_header is not initial.
+            ls_nfa_header-pre_delegatee = ls_rfq_header-active_del.
+            ls_nfa_header-active_del = lv_delegatee.
+            modify znfa_header from ls_nfa_header.
+            ls_delegatee-nfa_id = lv_nfaid.
+            ls_delegatee-delegatee = lv_delegatee.
+            ls_delegatee-start_date = ls_data-startdate.
+            ls_delegatee-end_date = ls_data-enddate.
+            modify zdelegatee from ls_delegatee.
+            if sy-subrc is initial.
+              er_entity-nfaid = lv_nfaid.
+            endif.
+          endif.
+        endif.
+      endif.
+      if lv_pur_grp is not initial.
+        select single
+          *
+          from znfa_apr_deli
+          into ls_nfa_apr_deli
+          where pur_grp = lv_pur_grp
+            and enddate = ls_data-enddate
+            and startdate = ls_data-startdate.
+        if sy-subrc is initial.
+          ls_nfa_apr_deli-hod_user_department = ls_data-hod_user_department.
+          ls_nfa_apr_deli-hod_scm = ls_data-hod_scm.
+          ls_nfa_apr_deli-hod_project_dev = ls_data-hod_project_dev.
+          ls_nfa_apr_deli-functional_hod_scm = ls_data-functional_hod_scm.
+          ls_nfa_apr_deli-project_controller = ls_data-project_controller.
+          ls_nfa_apr_deli-budget_controller = ls_data-budget_controller.
+          ls_nfa_apr_deli-finance_controller = ls_data-finance_controller.
+          ls_nfa_apr_deli-head_sc = ls_data-head_sc.
+          ls_nfa_apr_deli-chro = ls_data-chro.
+          ls_nfa_apr_deli-gcfo = ls_data-gcfo.
+          ls_nfa_apr_deli-ceo = ls_data-ceo.
+        else.
+          ls_nfa_apr_deli = corresponding #( ls_data ).
+        endif.
+        modify znfa_apr_deli from ls_nfa_apr_deli.
+        if sy-subrc is initial.
+          er_entity-pur_grp = lv_pur_grp.
+        endif.
+      endif.
+    endif.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_DELEGATEE_DPC_EXT->SETDELEGATEESET_GET_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_REQUEST_OBJECT              TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_DELEGATEE_MPC=>TS_SETDELEGATEE
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_ENTITY_CNTXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method setdelegateeset_get_entity.
+    data(lv_rfqid) = it_key_tab[ name = 'RFQID' ]-value.
+    data(lv_nfaid) = it_key_tab[ name = 'NFAID' ]-value.
+    data(lv_pur_grp) = it_key_tab[ name = 'PUR_GRP' ]-value.
+    condense : lv_rfqid, lv_nfaid, lv_pur_grp.
+    if lv_rfqid is not initial.
+      select single * from zrfq_header into @data(ls_rfq_header) where rfqid = @lv_rfqid.
+      if sy-subrc is initial.
+        er_entity-doctype = 'RFQ'.
+        er_entity-docnr = ls_rfq_header-rfqid.
+        er_entity-rfqid = ls_rfq_header-rfqid.
+        er_entity-buyer = ls_rfq_header-buyer.
+        er_entity-delegatee = ls_rfq_header-active_del.
+        select single * from zdelegatee into @data(ls_DELEGATEE) where rfqid = @lv_rfqid and delegatee = @ls_rfq_header-active_del.
+        if sy-subrc is initial.
+          er_entity-startdate = ls_DELEGATEE-start_date.
+          er_entity-enddate = ls_DELEGATEE-end_date.
+        endif.
+      endif.
+    endif.
+    if lv_nfaid is not initial.
+      select single * from znfa_header into @data(ls_nfa_header) where nfa_id = @lv_nfaid.
+      if sy-subrc is initial.
+        er_entity-doctype = 'NFA'.
+        er_entity-docnr = ls_nfa_header-nfa_id.
+        er_entity-nfaid = ls_nfa_header-nfa_id.
+        er_entity-buyer = ls_nfa_header-buyer.
+        er_entity-delegatee = ls_rfq_header-active_del.
+        select single * from zdelegatee into @ls_DELEGATEE where rfqid = @lv_rfqid and delegatee = @ls_rfq_header-active_del.
+        if sy-subrc is initial.
+          er_entity-startdate = ls_DELEGATEE-start_date.
+          er_entity-enddate = ls_DELEGATEE-end_date.
+        endif.
+      endif.
+    endif.
+    if lv_pur_grp is not initial.
+      select single * from znfa_apr_deli into @data(ls_znfa_apr_deli) where pur_grp = @lv_pur_grp.
+      if sy-subrc is initial.
+        er_entity = corresponding #( ls_znfa_apr_deli ).
+      endif.
+    endif.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_DELEGATEE_DPC_EXT->SETDELEGATEESET_GET_ENTITYSET
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_FILTER_SELECT_OPTIONS       TYPE        /IWBEP/T_MGW_SELECT_OPTION
+* | [--->] IS_PAGING                      TYPE        /IWBEP/S_MGW_PAGING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IT_ORDER                       TYPE        /IWBEP/T_MGW_SORTING_ORDER
+* | [--->] IV_FILTER_STRING               TYPE        STRING
+* | [--->] IV_SEARCH_STRING               TYPE        STRING
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITYSET(optional)
+* | [<---] ET_ENTITYSET                   TYPE        ZCL_ZRFQ_DELEGATEE_MPC=>TT_SETDELEGATEE
+* | [<---] ES_RESPONSE_CONTEXT            TYPE        /IWBEP/IF_MGW_APPL_SRV_RUNTIME=>TY_S_MGW_RESPONSE_CONTEXT
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method setdelegateeset_get_entityset.
+    data lv_pur_grp type ekgrp.
+
+
+    if line_exists( it_filter_select_options[ property = 'PUR_GRP' ] ).
+      lv_pur_grp = it_filter_select_options[ property = 'PUR_GRP' ]-select_options[ 1 ]-low.
+    endif.
+
+    if lv_pur_grp is not initial.
+      select * from znfa_apr_deli into table @data(lt_nfa_apr_deli) where pur_grp = @lv_pur_grp.
+      if lt_nfa_apr_deli is not initial.
+        SORT lt_nfa_apr_deli by STARTDATE DESCENDING.
+        et_entityset = corresponding #( lt_nfa_apr_deli ).
+      endif.
+    endif.
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Protected Method ZCL_ZRFQ_DELEGATEE_DPC_EXT->SETDELEGATEESET_UPDATE_ENTITY
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ENTITY_NAME                 TYPE        STRING
+* | [--->] IV_ENTITY_SET_NAME             TYPE        STRING
+* | [--->] IV_SOURCE_NAME                 TYPE        STRING
+* | [--->] IT_KEY_TAB                     TYPE        /IWBEP/T_MGW_NAME_VALUE_PAIR
+* | [--->] IO_TECH_REQUEST_CONTEXT        TYPE REF TO /IWBEP/IF_MGW_REQ_ENTITY_U(optional)
+* | [--->] IT_NAVIGATION_PATH             TYPE        /IWBEP/T_MGW_NAVIGATION_PATH
+* | [--->] IO_DATA_PROVIDER               TYPE REF TO /IWBEP/IF_MGW_ENTRY_PROVIDER(optional)
+* | [<---] ER_ENTITY                      TYPE        ZCL_ZRFQ_DELEGATEE_MPC=>TS_SETDELEGATEE
+* | [!CX!] /IWBEP/CX_MGW_BUSI_EXCEPTION
+* | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method setdelegateeset_update_entity.
+
+    data : ls_data      type zcl_zrfq_delegatee_mpc=>ts_setdelegatee,
+           ls_delegatee type zdelegatee.
+
+    io_data_provider->read_entry_data( importing es_data = ls_data ).
+
+    if ls_data is not initial.
+      data(lv_rfqid) = ls_data-rfqid.
+      data(lv_nfaid) = ls_data-nfaid.
+      data(lv_delete) = ls_data-delete.
+      data(lv_pur_grp) = ls_data-pur_grp.
+      condense lv_rfqid.
+      condense lv_nfaid.
+      if lv_rfqid is not initial and lv_delete is not initial.
+        select single * from zrfq_header into @data(ls_rfq_header) where rfqid = @lv_rfqid.
+        if ls_rfq_header is not initial.
+          ls_rfq_header-pre_delegatee = ls_rfq_header-active_del.
+          ls_rfq_header-active_del = ''.
+          modify zrfq_header from ls_rfq_header.
+          if sy-subrc is initial.
+            ls_delegatee-rfqid = lv_rfqid.
+            ls_delegatee-delegatee = ls_rfq_header-pre_delegatee.
+            ls_delegatee-deleted = abap_true.
+            ls_delegatee-delete_date = sy-datum.
+            update zdelegatee
+            set deleted = @abap_true,
+                delete_date = @sy-datum
+                where rfqid = @lv_rfqid
+                  and delegatee = @ls_rfq_header-pre_delegatee.
+          endif.
+        endif.
+      endif.
+      if lv_nfaid is not initial and lv_delete is not initial.
+        select single * from znfa_header into @data(ls_nfa_header) where nfa_id = @lv_nfaid.
+        if ls_nfa_header is not initial.
+          ls_nfa_header-pre_delegatee = ls_rfq_header-active_del.
+          ls_nfa_header-active_del = ''.
+          modify znfa_header from ls_nfa_header.
+          if sy-subrc is initial.
+            ls_delegatee-nfa_id = lv_nfaid.
+            ls_delegatee-delegatee = ls_rfq_header-pre_delegatee.
+            ls_delegatee-deleted = abap_true.
+            ls_delegatee-delete_date = sy-datum.
+            update zdelegatee
+              set deleted = @abap_true,
+                  delete_date = @sy-datum
+                  where nfa_id = @lv_nfaid
+                    and delegatee = @ls_rfq_header-pre_delegatee.
+          endif.
+        endif.
+      endif.
+      if lv_pur_grp is not initial and lv_delete is not initial.
+        update znfa_apr_deli
+                 set deleted = @abap_true,
+                     delete_date = @sy-datum
+                     where pur_grp = @lv_pur_grp
+                     and STARTDATE = @ls_data-startdate
+                     and ENDDATE = @ls_data-enddate.
+      endif.
+    endif.
+  endmethod.
+ENDCLASS.

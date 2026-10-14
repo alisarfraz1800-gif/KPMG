@@ -51,8 +51,8 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method delegateef4set_get_entityset.
     data lv_filter type string.
-    if line_exists( it_filter_select_options[ property = 'Type' ] ) .
-      data(lv_type) = it_filter_select_options[ property = 'Type' ]-select_options[ 1 ]-low.
+    if line_exists( it_filter_select_options[ property = 'Type' ] ) ##NO_TEXT.
+      data(lv_type) = it_filter_select_options[ property = 'Type' ]-select_options[ 1 ]-low ##NO_TEXT.
     endif.
     if iv_search_string is not initial.
       lv_filter = |%{ iv_search_string }%|.
@@ -120,9 +120,9 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
     data : lv_filter type string.
     if iv_search_string is not initial.
       lv_filter = |%{ iv_search_string }%|.
-      select nfa_id from znfa_header into table et_entityset where nfa_id like lv_filter.
+      select nfa_id from znfa_header into table @et_entityset where nfa_id like @lv_filter.
     else.
-      select nfa_id from znfa_header into table et_entityset.
+      select nfa_id from znfa_header into table @et_entityset where nfa_id <> @space.
     endif.
     SORT et_entityset by nfa_id DESCENDING.
   endmethod.
@@ -154,7 +154,7 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
       translate lv_filter to upper case.
       select pur_grp , description from zdepartment_det into table @et_entityset where pur_grp like @lv_filter or description like @lv_filter.
     else.
-      select pur_grp , description from zdepartment_det into table @et_entityset.
+      select pur_grp , description from zdepartment_det into table @et_entityset where pur_grp <> @space.
     endif.
   endmethod.
 
@@ -182,9 +182,9 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
     data : lv_filter type string.
     if iv_search_string is not initial.
       lv_filter = |%{ iv_search_string }%|.
-    select rfqid from zrfq_header into table et_entityset WHERE rfqid like lv_filter.
+    select rfqid from zrfq_header into table @et_entityset WHERE rfqid like @lv_filter.
       else.
-    select rfqid from zrfq_header into table et_entityset.
+    select rfqid from zrfq_header into table @et_entityset where rfqid <> @space.
     endif.
     sort et_entityset by rfqid descending.
   endmethod.
@@ -220,7 +220,10 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
       condense : lv_rfqid, lv_nfaid, lv_pur_grp.
       if lv_rfqid is not initial.
         if lv_delegatee is not initial.
-          select single * from zrfq_header into @data(ls_rfq_header) where rfqid = @lv_rfqid.
+          select * from zrfq_header into @data(ls_rfq_header) up to 1 rows
+            where rfqid = @lv_rfqid
+            order by primary key.
+          endselect.
           if ls_rfq_header is not initial.
             ls_rfq_header-pre_delegatee = ls_rfq_header-active_del.
             ls_rfq_header-active_del = lv_delegatee.
@@ -238,7 +241,10 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
       endif.
       if lv_nfaid is not initial.
         if lv_delegatee is not initial.
-          select single * from znfa_header into @data(ls_nfa_header) where nfa_id = @lv_nfaid.
+          select * from znfa_header into @data(ls_nfa_header) up to 1 rows
+            where nfa_id = @lv_nfaid
+            order by primary key.
+          endselect.
           if ls_nfa_header is not initial.
             ls_nfa_header-pre_delegatee = ls_rfq_header-active_del.
             ls_nfa_header-active_del = lv_delegatee.
@@ -307,14 +313,20 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
     data(lv_pur_grp) = it_key_tab[ name = 'PUR_GRP' ]-value.
     condense : lv_rfqid, lv_nfaid, lv_pur_grp.
     if lv_rfqid is not initial.
-      select single * from zrfq_header into @data(ls_rfq_header) where rfqid = @lv_rfqid.
+      select rfqid, buyer, active_del from zrfq_header into @data(ls_rfq_header) up to 1 rows
+        where rfqid = @lv_rfqid
+        order by rfqid.
+      endselect.
       if sy-subrc is initial.
         er_entity-doctype = 'RFQ'.
         er_entity-docnr = ls_rfq_header-rfqid.
         er_entity-rfqid = ls_rfq_header-rfqid.
         er_entity-buyer = ls_rfq_header-buyer.
         er_entity-delegatee = ls_rfq_header-active_del.
-        select single * from zdelegatee into @data(ls_DELEGATEE) where rfqid = @lv_rfqid and delegatee = @ls_rfq_header-active_del.
+        select start_date, end_date from zdelegatee into @data(ls_DELEGATEE) up to 1 rows
+          where rfqid = @lv_rfqid and delegatee = @ls_rfq_header-active_del
+          order by start_date descending.
+        endselect.
         if sy-subrc is initial.
           er_entity-startdate = ls_DELEGATEE-start_date.
           er_entity-enddate = ls_DELEGATEE-end_date.
@@ -322,14 +334,20 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
       endif.
     endif.
     if lv_nfaid is not initial.
-      select single * from znfa_header into @data(ls_nfa_header) where nfa_id = @lv_nfaid.
+      select nfa_id, buyer from znfa_header into @data(ls_nfa_header) up to 1 rows
+        where nfa_id = @lv_nfaid
+        order by nfa_id.
+      endselect.
       if sy-subrc is initial.
         er_entity-doctype = 'NFA'.
         er_entity-docnr = ls_nfa_header-nfa_id.
         er_entity-nfaid = ls_nfa_header-nfa_id.
         er_entity-buyer = ls_nfa_header-buyer.
         er_entity-delegatee = ls_rfq_header-active_del.
-        select single * from zdelegatee into @ls_DELEGATEE where rfqid = @lv_rfqid and delegatee = @ls_rfq_header-active_del.
+        select start_date, end_date from zdelegatee into @ls_DELEGATEE up to 1 rows
+          where rfqid = @lv_rfqid and delegatee = @ls_rfq_header-active_del
+          order by start_date descending.
+        endselect.
         if sy-subrc is initial.
           er_entity-startdate = ls_DELEGATEE-start_date.
           er_entity-enddate = ls_DELEGATEE-end_date.
@@ -337,7 +355,10 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
       endif.
     endif.
     if lv_pur_grp is not initial.
-      select single * from znfa_apr_deli into @data(ls_znfa_apr_deli) where pur_grp = @lv_pur_grp.
+      select * from znfa_apr_deli into @data(ls_znfa_apr_deli) up to 1 rows
+        where pur_grp = @lv_pur_grp
+        order by startdate descending.
+      endselect.
       if sy-subrc is initial.
         er_entity = corresponding #( ls_znfa_apr_deli ).
       endif.
@@ -412,7 +433,10 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
       condense lv_rfqid.
       condense lv_nfaid.
       if lv_rfqid is not initial and lv_delete is not initial.
-        select single * from zrfq_header into @data(ls_rfq_header) where rfqid = @lv_rfqid.
+        select * from zrfq_header into @data(ls_rfq_header) up to 1 rows
+          where rfqid = @lv_rfqid
+          order by primary key.
+        endselect.
         if ls_rfq_header is not initial.
           ls_rfq_header-pre_delegatee = ls_rfq_header-active_del.
           ls_rfq_header-active_del = ''.
@@ -431,7 +455,10 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
         endif.
       endif.
       if lv_nfaid is not initial and lv_delete is not initial.
-        select single * from znfa_header into @data(ls_nfa_header) where nfa_id = @lv_nfaid.
+        select * from znfa_header into @data(ls_nfa_header) up to 1 rows
+          where nfa_id = @lv_nfaid
+          order by primary key.
+        endselect.
         if ls_nfa_header is not initial.
           ls_nfa_header-pre_delegatee = ls_rfq_header-active_del.
           ls_nfa_header-active_del = ''.

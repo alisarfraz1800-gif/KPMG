@@ -188,7 +188,14 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
           exceptions
             object_not_found        = 01
             interval_not_found      = 02
-            number_range_not_intern = 03.
+            number_range_not_intern = 03
+            others                  = 04.
+        if sy-subrc <> 0.
+          raise exception type /iwbep/cx_mgw_busi_exception
+            exporting
+              textid  = /iwbep/cx_mgw_busi_exception=>business_error
+              message = text-038.
+        endif.
 
         lt_data-nfaid = number.
       endif.
@@ -226,12 +233,12 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
             header = header
           tables
             lines  = lt_lines
-* EXCEPTIONS
-*           ID     = 1
-*           LANGUAGE                = 2
-*           NAME   = 3
-*           OBJECT = 4
-*           OTHERS = 5
+          exceptions
+            id       = 1
+            language = 2
+            name     = 3
+            object   = 4
+            others   = 5
           .
         if sy-subrc <> 0.
 * Implement suitable error handling here
@@ -270,12 +277,12 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
             header = header
           tables
             lines  = lt_lines
-* EXCEPTIONS
-*           ID     = 1
-*           LANGUAGE                = 2
-*           NAME   = 3
-*           OBJECT = 4
-*           OTHERS = 5
+          exceptions
+            id       = 1
+            language = 2
+            name     = 3
+            object   = 4
+            others   = 5
           .
         if sy-subrc <> 0.
 * Implement suitable error handling here
@@ -443,8 +450,10 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
         else.
 
 
-          select single * from zrfq_attachment into @Gs_NFAatt
-            where nfaid = @lt_data-nfaid and doknr = @nfaatt-docid.
+          select * from zrfq_attachment into @Gs_NFAatt up to 1 rows
+            where nfaid = @lt_data-nfaid and doknr = @nfaatt-docid
+            order by dokvr descending.
+          endselect.
 
           ls_NFAATT-NFAid = lt_data-nfaid.
           ls_NFAATT-dokar        = Gs_NFAatt-dokar.
@@ -579,16 +588,18 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
 *          and nfaamt = @lv_amt
 *          and opex_capex = @ls_dnfa_head-opex_capex.
 
-        select single
+        select
           *
           from zgnfa_approval
-          into @data(ls_APPROVAL)
+          into @data(ls_APPROVAL) up to 1 rows
           where nfatype     = @ls_dnfa_head-nfa_type
             and gencat      = @ls_dnfa_head-gen_category
             and ekgrp       = @ls_dnfa_head-purchase_grp
             and opex_capex  = @ls_dnfa_head-opex_capex
             and amount_from <= @ls_dnfa_head-contract_val
-            and amount_to   >= @ls_dnfa_head-contract_val.
+            and amount_to   >= @ls_dnfa_head-contract_val
+          order by primary key.
+        endselect.
 *---------------EOC Ali on 03.08.2026----------------*
         if sy-subrc is initial.
           select single * from zdepartment_det into @data(ls_department_det) where pur_grp = @ls_dnfa_head-purchase_grp.
@@ -622,7 +633,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
               read table lt_user_master into data(ls_user_master_check) with key id = ls_department_det-hod_user_department.
               if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                 lv_fail = abap_true.
-                concatenate 'Email id is not maintained against' ls_department_det-hod_user_department into data(lv_msg) separated by space.
+                concatenate text-001 ls_department_det-hod_user_department into data(lv_msg) separated by space.
               endif.
               clear ls_user_master_check.
             elseif ls_department_det-hod_user_department is initial
@@ -637,7 +648,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                or ls_APPROVAL-level9 = 'HOD-U'
                or ls_APPROVAL-level10 = 'HOD-U').
               lv_fail = abap_true.
-              lv_msg = 'Id is not maintained in HOD User Department'.
+              lv_msg = text-002.
             endif.
             if lv_fail is initial.
               if ls_department_det-hod_scm is not initial
@@ -654,7 +665,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-hod_scm.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-hod_scm into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-hod_scm into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-hod_scm is initial
@@ -669,7 +680,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                      or ls_APPROVAL-level9 = 'HOD-S'
                      or ls_APPROVAL-level10 = 'HOD-S') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in HOD SCM'.
+                lv_msg = text-003.
               endif.
             endif.
             if lv_fail is initial.
@@ -687,7 +698,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-hod_project_dev.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-hod_project_dev into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-hod_project_dev into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif
@@ -703,7 +714,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                     or ls_APPROVAL-level9 = 'HOD-PD'
                     or ls_APPROVAL-level10 = 'HOD-PD') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in HOD PD'.
+                lv_msg = text-004.
               endif.
             endif.
             if lv_fail is initial.
@@ -721,7 +732,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-functional_hod_scm.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-functional_hod_scm into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-functional_hod_scm into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-functional_hod_scm is initial
@@ -736,7 +747,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'FHODSCM'
                 or ls_APPROVAL-level10 = 'FHODSCM') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Functional HOD SCM'.
+                lv_msg = text-005.
               endif.
             endif.
             if lv_fail is initial.
@@ -754,7 +765,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-project_controller.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-project_controller into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-project_controller into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-project_controller is initial
@@ -769,7 +780,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'PRCTR'
                 or ls_APPROVAL-level10 = 'PRCTR') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Project Controller'.
+                lv_msg = text-006.
               endif.
             endif.
             if lv_fail is initial.
@@ -787,7 +798,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-budget_controller.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-budget_controller into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-budget_controller into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-budget_controller is initial
@@ -802,7 +813,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'BGTCTR'
                 or ls_APPROVAL-level10 = 'BGTCTR') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Budget Controller'.
+                lv_msg = text-007.
               endif.
             endif.
             if lv_fail is initial.
@@ -820,7 +831,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-finance_controller.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-finance_controller into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-finance_controller into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-finance_controller is initial
@@ -835,7 +846,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'FICTR'
                 or ls_APPROVAL-level10 = 'FICTR') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Finance Controller'.
+                lv_msg = text-008.
               endif.
             endif.
             if lv_fail is initial.
@@ -853,7 +864,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-head_sc.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-head_sc into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-head_sc into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-head_sc is initial
@@ -868,7 +879,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                or ls_APPROVAL-level9 = 'HEADSC'
                or ls_APPROVAL-level10 = 'HEADSC') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in HEAD S&C'.
+                lv_msg = text-009.
               endif.
             endif.
             if lv_fail is initial.
@@ -886,7 +897,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-chro.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-chro into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-chro into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-chro is initial
@@ -901,7 +912,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'CHRO'
                 or ls_APPROVAL-level10 = 'CHRO') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in CHRO'.
+                lv_msg = text-010.
               endif.
             endif.
             if lv_fail is initial.
@@ -919,7 +930,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-gcfo.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-gcfo into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-gcfo into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-gcfo is initial
@@ -934,7 +945,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'GCFO'
                 or ls_APPROVAL-level10 = 'GCFO') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in GCFO'.
+                lv_msg = text-011.
               endif.
             endif.
             if lv_fail is initial.
@@ -952,7 +963,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-ceo.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-ceo into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-ceo into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-ceo is initial
@@ -967,7 +978,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                or ls_APPROVAL-level9 = 'CEO'
                or ls_APPROVAL-level10 = 'CEO') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in CEO'.
+                lv_msg = text-012.
               endif.
             endif.
             if lv_fail is initial.
@@ -985,7 +996,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-mgr_scm.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-mgr_scm into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-mgr_scm into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-mgr_scm is initial
@@ -1000,7 +1011,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                  or ls_APPROVAL-level9 = 'MGR-SCM'
                  or ls_APPROVAL-level10 = 'MGR-SCM') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Manager SCM'.
+                lv_msg = text-013.
               endif.
             endif.
           else.
@@ -3554,7 +3565,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
               i_nfaid    = lv_nfaid
               i_emailto  = lt_emailto
               i_emailcc  = lt_emailcc
-              i_subject  = |Approval Request – NFA { lv_nfaid alpha = out }|
+              i_subject  = replace( val = text-014 sub = '&1' with = |{ lv_nfaid alpha = out }| )
               i_content  = 'MAIL1'
             importing
               return     = lv_return                 " Character Field with Length 10
@@ -3586,7 +3597,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
               i_buyer   = lv_buyer
               i_nfaid   = lv_nfaid
               i_emailto = lt_emailto
-              i_subject = 'Approver Details Missing for NFA Approval'
+              i_subject = conv #( text-015 )
               i_content = 'MAIL2'
             importing
               return    = lv_return                 " Character Field with Length 10
@@ -3595,7 +3606,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
             raise exception type /iwbep/cx_mgw_busi_exception
               exporting
                 textid  = /iwbep/cx_mgw_busi_exception=>business_error
-                message = 'Internal server error. Please contact Azure Team'.
+                message = text-016.
           endif.
         endif.
       endif.
@@ -3606,8 +3617,8 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
       modify zdirect_nfa_head from ls_dnfa_head.
       modify zdirect_nfa_item from table lT_dnfa_ITEM.
       if ls_hist is not initial.
-        modify zdnfa_hist from ls_hist.
-        if sy-subrc is initial.
+        insert zdnfa_hist from ls_hist.
+        if sy-subrc is initial or sy-subrc = 4.
           commit work and wait.
         endif.
       endif.
@@ -3733,16 +3744,18 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
 *           and nfaamt = @lv_amt
 *           and opex_capex = @ls_dnfa_head-opex_capex.
 
-        select single
+        select
           *
           from zgnfa_approval
-          into @ls_APPROVAL
+          into @ls_APPROVAL up to 1 rows
           where nfatype     = @ls_dnfa_head-nfa_type
             and gencat      = @ls_dnfa_head-gen_category
             and ekgrp       = @ls_dnfa_head-purchase_grp
             and opex_capex  = @ls_dnfa_head-opex_capex
             and amount_from <= @ls_dnfa_head-contract_val
-            and amount_to   >= @ls_dnfa_head-contract_val.
+            and amount_to   >= @ls_dnfa_head-contract_val
+          order by primary key.
+        endselect.
 *---------------EOC Ali on 03.08.2026----------------*
         if sy-subrc is initial.
           select single * from zdepartment_det into @ls_department_det where pur_grp = @ls_dnfa_head-purchase_grp.
@@ -6335,7 +6348,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                     i_nfaid    = lv_nfaid
                     i_emailto  = lt_emailto
                     i_emailcc  = lt_emailcc
-                    i_subject  = |Approval Request – NFA { lv_nfaid alpha = out }|
+                    i_subject  = replace( val = text-014 sub = '&1' with = |{ lv_nfaid alpha = out }| )
                     i_content  = 'MAIL1'
                   importing
                     return     = lv_return                 " Character Field with Length 10
@@ -6353,7 +6366,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                       i_nfaid   = lv_nfaid
                       i_emailto = lt_emailto
                       i_emailcc = lt_emailcc
-                      i_subject = |NFA Approved – Proceed for PO Creation|
+                      i_subject = conv #( text-017 )
                       i_content = 'MAIL3'
                     importing
                       return    = lv_return                 " Character Field with Length 10
@@ -6366,7 +6379,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                       i_reason   = lt_data-remark
                       i_emailto  = lt_emailto
                       i_emailcc  = lt_emailcc
-                      i_subject  = |NFA Rejected|
+                      i_subject  = conv #( text-018 )
                       i_content  = 'MAIL5'
                     importing
                       return     = lv_return                 " Character Field with Length 10
@@ -6377,7 +6390,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 raise exception type /iwbep/cx_mgw_busi_exception
                   exporting
                     textid  = /iwbep/cx_mgw_busi_exception=>business_error
-                    message = 'Internal server error. Please contact Azure Team'.
+                    message = text-016.
               endif.
 
             endif.
@@ -6389,8 +6402,8 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
             if sy-subrc is initial.
               commit work and wait.
               if ls_hist is not initial.
-                modify zdnfa_hist from ls_hist.
-                if sy-subrc is initial.
+                insert zdnfa_hist from ls_hist.
+                if sy-subrc is initial or sy-subrc = 4.
                   commit work and wait.
                 endif.
               endif.
@@ -6641,16 +6654,18 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
 *    and nfaamt = @lv_amt
 *    and opex_capex = @ls_dnfa_head-opex_capex.
 
-        select single
+        select
           *
           from zgnfa_approval
-          into @ls_APPROVAL
+          into @ls_APPROVAL up to 1 rows
           where nfatype     = 'DIRECT'
             and gencat      = @ls_dnfa_head-gen_category
             and ekgrp       = @ls_dnfa_head-purchase_grp
             and opex_capex  = @ls_dnfa_head-opex_capex
             and amount_from <= @ls_dnfa_head-contract_val
-            and amount_to   >= @ls_dnfa_head-contract_val.
+            and amount_to   >= @ls_dnfa_head-contract_val
+          order by primary key.
+        endselect.
 *---------------EOC Ali on 03.08.2026----------------*
         if sy-subrc is initial.
           select single * from zdepartment_det into @ls_department_det where pur_grp = @ls_dnfa_head-purchase_grp.
@@ -6684,7 +6699,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
               read table lt_user_master into ls_user_master_check with key id = ls_department_det-hod_user_department.
               if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                 lv_fail = abap_true.
-                concatenate 'Email id is not maintained against' ls_department_det-hod_user_department into lv_msg separated by space.
+                concatenate text-001 ls_department_det-hod_user_department into lv_msg separated by space.
               endif.
               clear ls_user_master_check.
             elseif ls_department_det-hod_user_department is initial
@@ -6699,7 +6714,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                or ls_APPROVAL-level9 = 'HOD-U'
                or ls_APPROVAL-level10 = 'HOD-U').
               lv_fail = abap_true.
-              lv_msg = 'Id is not maintained in HOD User Department'.
+              lv_msg = text-002.
             endif.
             if lv_fail is initial.
               if ls_department_det-hod_scm is not initial
@@ -6716,7 +6731,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-hod_scm.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-hod_scm into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-hod_scm into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-hod_scm is initial
@@ -6731,7 +6746,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                      or ls_APPROVAL-level9 = 'HOD-S'
                      or ls_APPROVAL-level10 = 'HOD-S') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in HOD SCM'.
+                lv_msg = text-003.
               endif.
             endif.
             if lv_fail is initial.
@@ -6749,7 +6764,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-hod_project_dev.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-hod_project_dev into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-hod_project_dev into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif
@@ -6765,7 +6780,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                     or ls_APPROVAL-level9 = 'HOD-PD'
                     or ls_APPROVAL-level10 = 'HOD-PD') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in HOD PD'.
+                lv_msg = text-004.
               endif.
             endif.
             if lv_fail is initial.
@@ -6783,7 +6798,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-functional_hod_scm.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-functional_hod_scm into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-functional_hod_scm into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-functional_hod_scm is initial
@@ -6798,7 +6813,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'FHODSCM'
                 or ls_APPROVAL-level10 = 'FHODSCM') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Functional HOD SCM'.
+                lv_msg = text-005.
               endif.
             endif.
             if lv_fail is initial.
@@ -6816,7 +6831,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-project_controller.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-project_controller into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-project_controller into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-project_controller is initial
@@ -6831,7 +6846,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'PRCTR'
                 or ls_APPROVAL-level10 = 'PRCTR') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Project Controller'.
+                lv_msg = text-006.
               endif.
             endif.
             if lv_fail is initial.
@@ -6849,7 +6864,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-budget_controller.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-budget_controller into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-budget_controller into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-budget_controller is initial
@@ -6864,7 +6879,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'BGTCTR'
                 or ls_APPROVAL-level10 = 'BGTCTR') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Budget Controller'.
+                lv_msg = text-007.
               endif.
             endif.
             if lv_fail is initial.
@@ -6882,7 +6897,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-finance_controller.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-finance_controller into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-finance_controller into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-finance_controller is initial
@@ -6897,7 +6912,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'FICTR'
                 or ls_APPROVAL-level10 = 'FICTR') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Finance Controller'.
+                lv_msg = text-008.
               endif.
             endif.
             if lv_fail is initial.
@@ -6915,7 +6930,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-head_sc.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-head_sc into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-head_sc into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-head_sc is initial
@@ -6930,7 +6945,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                or ls_APPROVAL-level9 = 'HEADSC'
                or ls_APPROVAL-level10 = 'HEADSC') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in HEAD S&C'.
+                lv_msg = text-009.
               endif.
             endif.
             if lv_fail is initial.
@@ -6948,7 +6963,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-chro.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-chro into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-chro into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-chro is initial
@@ -6963,7 +6978,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'CHRO'
                 or ls_APPROVAL-level10 = 'CHRO') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in CHRO'.
+                lv_msg = text-010.
               endif.
             endif.
             if lv_fail is initial.
@@ -6981,7 +6996,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-gcfo.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-gcfo into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-gcfo into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-gcfo is initial
@@ -6996,7 +7011,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 or ls_APPROVAL-level9 = 'GCFO'
                 or ls_APPROVAL-level10 = 'GCFO') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in GCFO'.
+                lv_msg = text-011.
               endif.
             endif.
             if lv_fail is initial.
@@ -7014,7 +7029,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-ceo.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-ceo into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-ceo into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-ceo is initial
@@ -7029,7 +7044,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                or ls_APPROVAL-level9 = 'CEO'
                or ls_APPROVAL-level10 = 'CEO') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in CEO'.
+                lv_msg = text-012.
               endif.
             endif.
             if lv_fail is initial.
@@ -7047,7 +7062,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                 read table lt_user_master into ls_user_master_check with key id = ls_department_det-mgr_scm.
                 if sy-subrc is not initial or ls_user_master_check-emailid is initial.
                   lv_fail = abap_true.
-                  concatenate 'Email id is not maintained against' ls_department_det-mgr_scm into lv_msg separated by space.
+                  concatenate text-001 ls_department_det-mgr_scm into lv_msg separated by space.
                 endif.
                 clear ls_user_master_check.
               elseif ls_department_det-mgr_scm is initial
@@ -7062,7 +7077,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
                  or ls_APPROVAL-level9 = 'MGR-SCM'
                  or ls_APPROVAL-level10 = 'MGR-SCM') .
                 lv_fail = abap_true.
-                lv_msg = 'Id is not maintained in Manager SCM'.
+                lv_msg = text-013.
               endif.
             endif.
           else.
@@ -7317,7 +7332,7 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
               i_nfaid    = lv_nfaid
               i_emailto  = lt_emailto
               i_emailcc  = lt_emailcc
-              i_subject  = |NFA Queried - Provide the Required Response|
+              i_subject  = conv #( text-019 )
               i_content  = 'MAIL6'
             importing
               return     = lv_return                 " Character Field with Length 10
@@ -7754,18 +7769,20 @@ CLASS ZCL_ZDIRECT_NFA_PROCES_DPC_EXT IMPLEMENTATION.
 *                   and nfaamt = @lv_amt
 *                   and opex_capex = @ls_DATA-opexcapex.
 
-        select single
+        select
           *
           from zgnfa_approval
-          into @data(ls_APPROVAL)
+          into @data(ls_APPROVAL) up to 1 rows
           where nfatype     = @ls_head-nfa_type
             and gencat      = @ls_head-gen_category
             and ekgrp       = @ls_head-purchase_grp
             and opex_capex  = @ls_head-opex_capex
             and amount_from <= @ls_head-contract_val
-            and amount_to   >= @ls_head-contract_val.
+            and amount_to   >= @ls_head-contract_val
+          order by primary key.
+        endselect.
 *---------------EOC Ali on 03.08.2026----------------*
-        select * from zroles into table @data(lt_roles).
+        select role, description from zroles into table @data(lt_roles) where role <> @space.
 
         if ls_APPROVAL is not initial.
           case ls_head-alevel.
@@ -8629,6 +8646,8 @@ data: ls_key_tab     type /iwbep/s_mgw_name_value_pair,
             ls_header      TYPE ihttpnvp,
      lv_name_utf8    TYPE string,
         lv_filename_str TYPE string.
+constants: lc_content_disp TYPE string VALUE 'Content-Disposition' ##NO_TEXT,
+           lc_attach_utf8  TYPE string VALUE 'attachment; filename*=UTF-8''''' ##NO_TEXT.
 
 
 CASE iv_entity_set_name.
@@ -8643,13 +8662,16 @@ IF sy-subrc = 0.
 DOCID = ls_key_tab-value.
 ENDIF.
 
-SELECT SINGLE FROM ZRFQ_ATTACHMENT
+SELECT FROM ZRFQ_ATTACHMENT
   FIELDS
        DOKAR,
        DOKNR,
        DOKVR,
        DOKTL
-  WHERE NFAID = @NFAID AND DOKNR = @DOCID INTO @DATA(LS_RFQATT).
+  WHERE NFAID = @NFAID AND DOKNR = @DOCID
+  ORDER BY DOKVR DESCENDING
+  INTO @DATA(LS_RFQATT) UP TO 1 ROWS.
+ENDSELECT.
 
 try.
      call method zcl_supp_portal_utility=>retrieve_file_from_dms
@@ -8666,11 +8688,11 @@ try.
           catch /iwbep/cx_mgw_tech_exception .
         endtry.
 
-          ls_header-name = 'Content-Disposition'.
+          ls_header-name = lc_content_disp.
           lv_filename_str = lv_file_name.
           lv_name_utf8 = cl_http_utility=>if_http_utility~escape_url( unescaped =  lv_filename_str ).
           REPLACE ALL OCCURRENCES OF '%2e' IN lv_name_utf8 WITH '.'.
-          CONCATENATE 'attachment; filename*=UTF-8''''' lv_name_utf8 INTO ls_header-value.
+          CONCATENATE lc_attach_utf8 lv_name_utf8 INTO ls_header-value.
           set_header( is_header = ls_header ).
 
         ENDCASE.
@@ -8839,8 +8861,9 @@ SELECT FROM ZRFQ_DASHB_DD
 
 data : lt_ven TYPE RANGE OF zvdd_master-vendorcode,
        ls_ven like LINE OF lt_ven.
+constants lc_prop_vendor type string value 'Vendor' ##NO_TEXT.
 try.
-        data(ls_filter) = it_filter_select_options[ property = 'Vendor' ].
+        data(ls_filter) = it_filter_select_options[ property = lc_prop_vendor ].
         loop at ls_filter-select_options into data(ls_selopt).
 *            data(ls_selopt) = ls_filter-select_options[ 1 ].
          ls_ven-low = |{ ls_selopt-low ALPHA = OUT }|.
@@ -9172,11 +9195,14 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
    data(lv_id) = ls_key-value.
   ENDIF.
 
-  select SINGLE * from zrfq_prdashboard into @data(ls_data).
+  select act_buyer, purgroup from zrfq_prdashboard into @data(ls_data) up to 1 rows
+    where act_buyer <> @space
+    order by act_buyer, purgroup.
+  endselect.
 
     er_entity-initior = ls_data-ACT_BUYER.
     er_entity-purgrp = ls_data-PURGROUP.
-    er_entity-nfatype = 'Direct'.
+    er_entity-nfatype = text-020.
     er_entity-contractval = 'ARC'.
 
   endmethod.
@@ -9247,23 +9273,29 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
                                                               e_ccode     = lv_bukrs ).
 
     if lv_loginid is not initial.
-      select single * from zapp_roles into @data(ls_role) where id = @lv_loginid and role = 'ADMIN' and application = 'APP.14'.
+      select single @abap_true from zapp_roles into @data(lv_role_exists) where id = @lv_loginid and role = 'ADMIN' and application = 'APP.14'.
       if sy-subrc is not initial.
-        select single * from zapp_roles into @ls_role where id = @lv_loginid and role = 'BUYER' and application = 'APP.14'.
+        select single @abap_true from zapp_roles into @lv_role_exists where id = @lv_loginid and role = 'BUYER' and application = 'APP.14'.
         if sy-subrc is not initial.
 
-          select single * from zapp_roles into @ls_role
+          select single @abap_true from zapp_roles into @lv_role_exists
              where id = @lv_loginid and role = 'APPROVER' and application = 'APP.14'.
           if sy-subrc = 0.
             data(approver) = 'X'.
             translate lv_loginid to upper case.
-            select single id, name from zrfq_user_master into @data(ls_ID) where id = @lv_loginid .
+            select id, name from zrfq_user_master into @data(ls_ID) up to 1 rows
+              where id = @lv_loginid
+              order by id.
+            endselect.
           endif.
 
         else.
           data(buyerrole) = 'X'.
           translate lv_loginid to upper case.
-          select single id, name from zrfq_user_master into @ls_ID where id = @lv_loginid.
+          select id, name from zrfq_user_master into @ls_ID up to 1 rows
+            where id = @lv_loginid
+            order by id.
+          endselect.
         endif.
       else.
         data(admin) = 'X'.
@@ -9303,7 +9335,8 @@ createdon,
       select *
         into table @data(lt_query)
         from zgnfa_query_tab
-        where nfaid = @<fs_dnfa>-nfaid.
+        where nfaid = @<fs_dnfa>-nfaid
+        order by primary key.
       if lt_query is initial.
         clear: <fs_dnfa>-querysolve,
      <fs_dnfa>-querychk.
@@ -9478,19 +9511,29 @@ createdon,
           and gencat       = @gt_nfa-gencat
           and ekgrp        = @gt_nfa-ekgrp
           and opex_capex   = @gt_nfa-opex_capex.
+      sort lt_approval by nfatype gencat ekgrp opex_capex amount_from amount_to.
 *---------------EOC Ali on 03.08.2026----------------*
-      select id, name from zrfq_user_master into table @data(lt_USER_MASTER) for all entries in @lt_DEPARTMENT_DET where id = @lt_DEPARTMENT_DET-hod_user_department+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-hod_scm+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-hod_project_dev+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-functional_hod_scm+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-project_controller+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-budget_controller+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-finance_controller+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-head_sc+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-chro+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-gcfo+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-ceo+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-mgr_scm+0(10).
+      data lr_user_id type range of zrfq_user_master-id.
+      loop at lt_department_det into data(ls_dept_ids).
+        lr_user_id = value #( base lr_user_id sign = 'I' option = 'EQ'
+                              ( low = ls_dept_ids-hod_user_department+0(10) )
+                              ( low = ls_dept_ids-hod_scm+0(10) )
+                              ( low = ls_dept_ids-hod_project_dev+0(10) )
+                              ( low = ls_dept_ids-functional_hod_scm+0(10) )
+                              ( low = ls_dept_ids-project_controller+0(10) )
+                              ( low = ls_dept_ids-budget_controller+0(10) )
+                              ( low = ls_dept_ids-finance_controller+0(10) )
+                              ( low = ls_dept_ids-head_sc+0(10) )
+                              ( low = ls_dept_ids-chro+0(10) )
+                              ( low = ls_dept_ids-gcfo+0(10) )
+                              ( low = ls_dept_ids-ceo+0(10) )
+                              ( low = ls_dept_ids-mgr_scm+0(10) ) ).
+      endloop.
+      sort lr_user_id by low.
+      delete adjacent duplicates from lr_user_id comparing low.
+      if lr_user_id is not initial.
+        select id, name from zrfq_user_master into table @data(lt_USER_MASTER) where id in @lr_user_id.
+      endif.
       loop at lt_DNFA into ls_DNFA.
 
 
@@ -9555,7 +9598,7 @@ createdon,
                 if sy-subrc is initial.
                   case lv_level.
                     when 'BUYER'.
-                      lv_apppending = 'Buyer'.
+                      lv_apppending = text-021.
                     when 'HOD-U'.
                       read table lt_USER_MASTER into data(ls_USER_MASTER) with key id = ls_department_det-hod_user_department.
                       lv_apppending = |{ ls_department_det-hod_user_department } { ls_USER_MASTER-name }|.
@@ -9606,8 +9649,14 @@ createdon,
             continue.
           endif.
         endif.
-        select single * from  zdnfa_hist into @data(ls_his) where nfaid = @ls_DNFA-nfaid.
-        select single * from  zrfq_user_master into @data(ls_user_master1) where id = @ls_DNFA-initiator.
+        select edate, etime from  zdnfa_hist into @data(ls_his) up to 1 rows
+          where nfaid = @ls_DNFA-nfaid
+          order by edate descending, etime descending.
+        endselect.
+        select name from  zrfq_user_master into @data(ls_user_master1) up to 1 rows
+          where id = @ls_DNFA-initiator
+          order by name.
+        endselect.
 
         concatenate ls_his-edate ls_his-etime into data(lv_date) separated by space.
         concatenate ls_DNFA-createdon ls_dnfa-createdat into data(lv_create) separated by space.
@@ -9670,13 +9719,13 @@ createdon,
       if et_entityset is not initial.
         loop at et_entityset assigning field-symbol(<ls_entityset>).
           if <ls_entityset>-action = 'A'.
-            <ls_entityset>-action = 'Approved'.
+            <ls_entityset>-action = text-022.
           endif.
           if <ls_entityset>-action = 'R'.
-            <ls_entityset>-action = 'Rejected'.
+            <ls_entityset>-action = text-023.
           endif.
            if <ls_entityset>-action = 'S'.
-            <ls_entityset>-action = 'Submitted'.
+            <ls_entityset>-action = text-024.
           endif.
           <ls_entityset>-date = |{ <ls_entityset>-date+4(2) }/{ <ls_entityset>-date+6(2) }/{ <ls_entityset>-date+0(4) }|.
           <ls_entityset>-time = |{ <ls_entityset>-time+0(2) }:{ <ls_entityset>-time+2(2) }:{ <ls_entityset>-time+4(2) }|.
@@ -9773,7 +9822,10 @@ createdon,
                                                               e_userrole  = lv_userrole
                                                               e_ccode     = lv_bukrs ).
     if lv_loginid is not initial.
-      select single name from zrfq_user_master into @data(lv_InitiatorName) where id = @lv_loginid.
+      select name from zrfq_user_master into @data(lv_InitiatorName) up to 1 rows
+        where id = @lv_loginid
+        order by name.
+      endselect.
     endif.
 
     try.
@@ -9816,18 +9868,21 @@ createdon,
 *    endtry.
 
 
-    select * from zrfq_prdashboard into table @data(lt_data) FOR ALL ENTRIES IN @gt_data
-      where prnumber = @gt_data-prno and pritem = @gt_data-pritem.
+    if gt_data is not initial.
+      select * from zrfq_prdashboard into table @data(lt_data) FOR ALL ENTRIES IN @gt_data
+        where prnumber = @gt_data-prno and pritem = @gt_data-pritem.
+    endif.
 *    select * from zrfq_prdashboard into table @data(lt_data) where prnumber in @r_prno and pritem in @r_pritem.
-    select
-      a~bukrs,
-      b~werks
-      from t001k as a
-      join t001w as b
-      on a~bwkey = b~bwkey
-      into table @data(lt_planttobukrs)
-      for all entries in @lt_data
-      where b~werks = @lt_data-plantcode.
+    if lt_data is not initial.
+      select werks, bwkey from t001w into table @data(lt_t001w)
+        for all entries in @lt_data
+        where werks = @lt_data-plantcode.
+      if lt_t001w is not initial.
+        select bwkey, bukrs from t001k into table @data(lt_t001k)
+          for all entries in @lt_t001w
+          where bwkey = @lt_t001w-bwkey.
+      endif.
+    endif.
 
     loop at lt_data into data(ls_data).
       es_entityset-initiator = lv_loginid.
@@ -9842,13 +9897,16 @@ createdon,
       es_entityset-prbudget = ls_data-totalprval.
       es_entityset-uom = ls_data-uom.
 *      select bukrs from t001 into es_entityset-compcode where werks = ls_data-plantcode.
-      read table lt_planttobukrs into data(ls_planttobukrs) with key werks = ls_data-plantcode.
+      read table lt_t001w into data(ls_t001w) with key werks = ls_data-plantcode.
       if sy-subrc is initial.
-        es_entityset-compcode = ls_planttobukrs-bukrs.
+        read table lt_t001k into data(ls_t001k) with key bwkey = ls_t001w-bwkey.
+        if sy-subrc is initial.
+          es_entityset-compcode = ls_t001k-bukrs.
+        endif.
       endif.
       es_entityset-deliverylocation = ls_data-plantaddress.
       append es_entityset to et_entityset.
-      clear : es_entityset,ls_planttobukrs.
+      clear : es_entityset,ls_t001w,ls_t001k.
     endloop.
   endmethod.
 
@@ -10031,11 +10089,18 @@ IO_DATA_PROVIDER->read_entry_data(
 ).
 *catch /iwbep/cx_mgw_tech_exception. " mgw technical exception
 
-UPDATE zdnfa_hist SET ACTION = 'RC' ,
+DATA : lv_action TYPE zdnfa_hist-action,
+       lv_remark TYPE zdnfa_hist-remark,
+       lv_nfaid  TYPE zdnfa_hist-nfaid.
+lv_action = 'RC'.
+lv_remark = LS_DATA-remark.
+lv_nfaid  = LS_DATA-NFAID.
+
+UPDATE zdnfa_hist SET ACTION = @lv_action,
                          edate = @SY-DATLO,
                          etime  = @SY-uzeit,
-                         remark = @LS_DATA-remark
-WHERE NFAID = @LS_DATA-NFAID.
+                         remark = @lv_remark
+WHERE NFAID = @lv_nfaid.
 IF SY-SUBRC = 0.
 COMMIT WORK.
 ENDIF.
@@ -10180,6 +10245,9 @@ method send_mail.
         lv_nfaid         type char50.
 
   data: lo_sender        type ref to if_sender_bcs value is initial. " Added by shahrukh 08/01/2026.
+
+  constants: lc_br  type string value '</br>' ##NO_TEXT,
+             lc_br2 type string value '<br/>' ##NO_TEXT.
   if i_nfaid is not initial.
     lv_nfaid = |{ i_nfaid alpha = out }|.
   endif.
@@ -10189,59 +10257,59 @@ method send_mail.
         ( line = |<HTML> <BODY>| )
         ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_approver },</br>| )
         ( line = |<br/>| )
-        ( line = |NFA { lv_nfaid } is pending for your approval.</br>| )
-        ( line = |Please review and approve at the earliest.</br>| )
+        ( line = replace( val = text-025 sub = '&1' with = lv_nfaid ) && lc_br )
+        ( line = text-026 && lc_br )
         ( line = |<br/>| )
  ( line = |<a href="https://azureportalprod-cqtz7hbe.launchpad.cfapps.in30.hana.ondemand.com/site?siteId=fb5c783b-a296-47c9-b4d3-a1a5d4285ace#Shell-home">Click here to view</a></br>| )
         ( line = |<br/>| )
-        ( line = |Regards,<br/>| )
-        ( line = |Procurement Team| )
+        ( line = text-027 && lc_br2 )
+        ( line = text-028 )
       ).
     when 'MAIL2'.
       lt_mailtxt = value #(
         ( line = |<HTML> <BODY>| )
         ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
         ( line = |<br/>| )
-        ( line = |Approver details missing against the NFA { lv_nfaid } initiated for Approval.</br>| )
+        ( line = replace( val = text-029 sub = '&1' with = lv_nfaid ) && lc_br )
         ( line = |<br/>| )
-        ( line = |Kindly click here to view the NFA details and maintain the appropriate approver details and resubmit for approval.</br>| )
+        ( line = text-030 && lc_br )
         ( line = |<br/>| )
-        ( line = |Thanks,| )
+        ( line = text-031 )
         ( line = |<br/>| )
-        ( line = |This is system generated E Mail.| )
+        ( line = text-032 )
       ).
     when 'MAIL3'.
       lt_mailtxt = value #(
   ( line = |<HTML> <BODY>| )
   ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
   ( line = |<br/>| )
-  ( line = |NFA { lv_nfaid } has been approved at all levels.</br>| )
-  ( line = |Please proceed with PO creation.</br>| )
+  ( line = replace( val = text-033 sub = '&1' with = lv_nfaid ) && lc_br )
+  ( line = text-034 && lc_br )
   ( line = |<br/>| )
-  ( line = |Regards,<br/>| )
-  ( line = |Procurement Team| )
+  ( line = text-027 && lc_br2 )
+  ( line = text-028 )
       ).
     when 'MAIL5'.
       lt_mailtxt = value #(
         ( line = |<HTML> <BODY>| )
         ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
         ( line = |<br/>| )
-        ( line = |NFA { i_nfaid } has been rejected by { i_approver } due to the following reason:</br>| )
+        ( line = replace( val = replace( val = text-035 sub = '&1' with = i_nfaid ) sub = '&2' with = i_approver ) && lc_br )
         ( line = |{ i_reason }.</br>| )
         ( line = |<br/>| )
-        ( line = |Regards,<br/>| )
-        ( line = |Procurement Team| )
+        ( line = text-027 && lc_br2 )
+        ( line = text-028 )
       ).
                            when 'MAIL6'.
       lt_mailtxt = value #(
         ( line = |<HTML> <BODY>| )
         ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
         ( line = |<br/>| )
-        ( line = |A Query has been raised by { i_approver }.</br>| )
-        ( line = |Please provide the required response on time to process it further.</br>| )
+        ( line = replace( val = text-036 sub = '&1' with = i_approver ) && lc_br )
+        ( line = text-037 && lc_br )
         ( line = |<br/>| )
-        ( line = |Regards,<br/>| )
-        ( line = |Procurement Team| )
+        ( line = text-027 && lc_br2 )
+        ( line = text-028 )
       ).
   endcase.
 
@@ -10409,7 +10477,8 @@ endmethod.
     select dummy_vendor,
            lifnr,
            ven_name,
-           status from zvend_onbrd into table @et_entityset." where  dummy_vendor in @r_lifnr1 or
+           status from zvend_onbrd into table @et_entityset
+           where dummy_vendor <> @space or lifnr <> @space." where  dummy_vendor in @r_lifnr1 or
 *            lifnr in @r_lifnr or ven_name in @r_name .
 
 *    delete et_entityset where vendorno = ' '.

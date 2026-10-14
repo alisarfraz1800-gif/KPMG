@@ -5119,8 +5119,8 @@ data: ls_key_tab     type /iwbep/s_mgw_name_value_pair,
             ls_header      TYPE ihttpnvp,
      lv_name_utf8    TYPE string,
         lv_filename_str TYPE string.
-constants: lc_content_disp TYPE string VALUE 'Content-Disposition',
-           lc_attach_utf8  TYPE string VALUE 'attachment; filename*=UTF-8'''''.
+constants: lc_content_disp TYPE string VALUE 'Content-Disposition' ##NO_TEXT,
+           lc_attach_utf8  TYPE string VALUE 'attachment; filename*=UTF-8''''' ##NO_TEXT.
 
 
 CASE iv_entity_set_name.
@@ -6187,8 +6187,8 @@ method send_mail.
 
   data: lo_sender        type ref to if_sender_bcs value is initial. " Added by shahrukh 08/01/2026.
 
-  constants: lc_br  type string value '</br>',
-             lc_br2 type string value '<br/>'.
+  constants: lc_br  type string value '</br>' ##NO_TEXT,
+             lc_br2 type string value '<br/>' ##NO_TEXT.
 
   if i_nfaid is not initial.
     lv_nfaid = |{ i_nfaid alpha = out }|.

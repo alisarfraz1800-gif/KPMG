@@ -50,7 +50,7 @@ CLASS ZCL_ZRFQ_DELEGATEE_DPC_EXT IMPLEMENTATION.
 * | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method delegateef4set_get_entityset.
-    constants lc_prop_type type string value 'Type'.
+    constants lc_prop_type type string value 'Type' ##NO_TEXT.
     data lv_filter type string.
     if line_exists( it_filter_select_options[ property = lc_prop_type ] ).
       data(lv_type) = it_filter_select_options[ property = lc_prop_type ]-select_options[ 1 ]-low.

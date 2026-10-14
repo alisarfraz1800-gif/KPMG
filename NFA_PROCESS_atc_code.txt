@@ -2032,7 +2032,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
               i_nfaid   = lv_nfaid
               i_emailto = lt_emailto
 *             i_emailcc = lt_emailcc
-              i_subject = text-018
+              i_subject = conv #( text-018 )
               i_content = 'MAIL2'
             importing
               return    = lv_return                 " Character Field with Length 10
@@ -3489,7 +3489,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                       i_nfaid   = lv_nfaid
                       i_emailto = lt_emailto
                       i_emailcc = lt_emailcc
-                      i_subject = text-021
+                      i_subject = conv #( text-021 )
                       i_content = 'MAIL3'
                     importing
                       return    = lv_return                 " Character Field with Length 10
@@ -3502,7 +3502,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                       i_reason   = lt_data-remark
                       i_emailto  = lt_emailto
                       i_emailcc  = lt_emailcc
-                      i_subject  = text-022
+                      i_subject  = conv #( text-022 )
                       i_content  = 'MAIL5'
                     importing
                       return     = lv_return                 " Character Field with Length 10
@@ -4149,7 +4149,7 @@ CLEAR : HEADER , LS_LINE ,lv_offset ,lv_len5.
                 i_nfaid    = lv_nfaid
                 i_emailto  = lt_emailto
                 i_emailcc  = lt_emailcc
-                i_subject  = text-023
+                i_subject  = conv #( text-023 )
                 i_content  = 'MAIL6'
               importing
                 return     = lv_return                 " Character Field with Length 10

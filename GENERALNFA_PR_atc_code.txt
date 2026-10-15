@@ -56,7 +56,7 @@ public section.
       value(NFAID) type ZDE_NFAID
       value(EVENTID) type ZDE_EVENTNO
       value(DOCTYPE) type CHAR4
-      value(I_DATA) type TT_DATA
+      !I_DATA type TT_DATA
     exporting
       !RETURN type TT_RETURN .
   methods FORMAT_AMOUNT
@@ -257,6 +257,8 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 * | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method /iwbep/if_mgw_appl_srv_runtime~create_deep_entity.
+    constants: lc_quoted type c length 6 value 'Quoted' ##NO_TEXT,
+               lc_opex   type c length 4 value 'Opex' ##NO_TEXT.
     types : begin of ty_podata.
               include type    ZCL_ZRFQ_GENERALNFA_PR_mpc=>ts_pocreate.
     types :   potoresults type table of ZCL_ZRFQ_GENERALNFA_PR_mpc=>ts_getnfadata with default key,
@@ -453,7 +455,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
             else.
               raise exception type /iwbep/cx_mgw_busi_exception
                 exporting
-                  message = 'ErrorIn saving Data'.
+                  message = text-001.
             endif.
           endif.
         else.
@@ -493,7 +495,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 
           """""""""""last round
           select  rfq_no , supplierref from zrfq_HEAD_bid_re
-            where  event_no = @lv_eventNO  and bidstatus = 'Quoted' and supplierref = @ls_DATA-supplierref
+            where  event_no = @lv_eventNO  and bidstatus = @lc_quoted and supplierref = @ls_DATA-supplierref
             into table @data(itrfq) .
 
           sort itrfq  by rfq_no descending.
@@ -725,7 +727,9 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
               from zgnfa_item
               into  @data(lv_totamt)
               where eventid = @LS_dATA1-eventid.
-            select single gen_category from zrfq_header into @data(lv_gen_category) where event_no = @LS_dATA1-eventid.
+            select gen_category from zrfq_header into @data(lv_gen_category) up to 1 rows where event_no = @LS_dATA1-eventid
+              order by gen_category.
+            endselect.
             if sy-subrc is initial.
 *---------------BOC Ali on 03.08.2026----------------*
 * Amount band derivation removed.  The approval strategy is now read directly
@@ -854,16 +858,18 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 *                       and nfaamt = @lv_amt
 *                       and opex_capex = @ls_header-opex_capex.
 
-              select single
+              select
                        *
                        from zgnfa_approval
-                       into @data(ls_APPROVAL)
+                       into @data(ls_APPROVAL) up to 1 rows
                        where nfatype     = 'GENERAL'
                        and gencat        = @lv_gen_category
                        and ekgrp         = @ls_header-ekgrp
                        and opex_capex    = @ls_header-opex_capex
                        and amount_from  <= @lv_totamt
-                       and amount_to    >= @lv_totamt.
+                       and amount_to    >= @lv_totamt
+                order by primary key.
+              endselect.
 *---------------EOC Ali on 03.08.2026----------------*
               if sy-subrc is initial.
                 select single * from zdepartment_det into @data(ls_department_det) where pur_grp = @ls_header-ekgrp.
@@ -1482,7 +1488,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                     i_nfaid    = lv_nfaid
                     i_emailto  = lt_emailto
                     i_emailcc  = lt_emailcc
-                    i_subject  = |NFA Queried - Provide the Required Response|
+                    i_subject  = conv #( text-002 )
                     i_content  = 'MAIL6'
                   importing
                     return     = lv_return                 " Character Field with Length 10
@@ -1510,7 +1516,14 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
               exceptions
                 object_not_found        = 01
                 interval_not_found      = 02
-                number_range_not_intern = 03.
+                number_range_not_intern = 03
+                others                  = 04.
+            if sy-subrc <> 0.
+              raise exception type /iwbep/cx_mgw_busi_exception
+                exporting
+                  textid  = /iwbep/cx_mgw_busi_exception=>business_error
+                  message = text-043.
+            endif.
 
             ls_data1-nfaid = number.
 
@@ -1521,13 +1534,17 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 *        select single  from znfa_header fields * where nfa_id = @ls_data1-eventid
 *       into @data(WA_HEAD).
 
-          select single from zrfq_header fields rfqid where event_no = @ls_data1-eventid
+          select from zrfq_header fields rfqid where event_no = @ls_data1-eventid
             and round = ( select max( round ) from zrfq_header where event_no = @ls_data1-eventid )
-            into @data(rfq_no).
+            order by rfqid
+            into @data(rfq_no) up to 1 rows.
+          endselect.
 
-          select single from zrfq_header fields
+          select from zrfq_header fields
             gen_category , category where event_no = @ls_data1-eventid
-            into @data(head_d).
+            order by gen_category, category
+            into @data(head_d) up to 1 rows.
+          endselect.
           if ls_Data1 is not initial.
 
             wa_head-event_no = ls_data1-eventid.
@@ -1578,12 +1595,12 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                 header = header
               tables
                 lines  = lt_lines
-* EXCEPTIONS
-*               ID     = 1
-*               LANGUAGE                = 2
-*               NAME   = 3
-*               OBJECT = 4
-*               OTHERS = 5
+              exceptions
+                id       = 1
+                language = 2
+                name     = 3
+                object   = 4
+                others   = 5
               .
             if sy-subrc <> 0.
 * Implement suitable error handling here
@@ -1654,12 +1671,12 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                 header = header
               tables
                 lines  = lt_lines
-* EXCEPTIONS
-*               ID     = 1
-*               LANGUAGE                = 2
-*               NAME   = 3
-*               OBJECT = 4
-*               OTHERS = 5
+              exceptions
+                id       = 1
+                language = 2
+                name     = 3
+                object   = 4
+                others   = 5
               .
             if sy-subrc <> 0.
 * Implement suitable error handling here
@@ -1973,8 +1990,10 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
               else.
 
 
-                select single * from zrfq_attachment into @Gs_NFAatt
-                  where nfaid = @ls_data1-nfaid and doknr = @nfaatt-docid.
+                select * from zrfq_attachment into @Gs_NFAatt up to 1 rows
+                  where nfaid = @ls_data1-nfaid and doknr = @nfaatt-docid
+                  order by dokvr descending.
+                endselect.
 
                 ls_NFAATT-NFAid = ls_data1-nfaid.
                 ls_NFAATT-dokar        = Gs_NFAatt-dokar.
@@ -2023,7 +2042,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
               else.
                 raise exception type /iwbep/cx_mgw_busi_exception
                   exporting
-                    message = 'ErrorIn saving Data'.
+                    message = text-001.
               endif.
             endif.
 
@@ -2046,7 +2065,14 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
               exceptions
                 object_not_found        = 01
                 interval_not_found      = 02
-                number_range_not_intern = 03.
+                number_range_not_intern = 03
+                others                  = 04.
+            if sy-subrc <> 0.
+              raise exception type /iwbep/cx_mgw_busi_exception
+                exporting
+                  textid  = /iwbep/cx_mgw_busi_exception=>business_error
+                  message = text-043.
+            endif.
 
             ls_data1-nfaid = number.
 
@@ -2057,13 +2083,17 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 *        select single  from znfa_header fields * where nfa_id = @ls_data1-eventid
 *       into @data(WA_HEAD).
 
-          select single from zrfq_header fields rfqid where event_no = @ls_data1-eventid
+          select from zrfq_header fields rfqid where event_no = @ls_data1-eventid
             and round = ( select max( round ) from zrfq_header where event_no = @ls_data1-eventid )
-            into @rfq_no.
+            order by rfqid
+            into @rfq_no up to 1 rows.
+          endselect.
 
-          select single from zrfq_header fields
+          select from zrfq_header fields
             gen_category , category where event_no = @ls_data1-eventid
-            into @head_d.
+            order by gen_category, category
+            into @head_d up to 1 rows.
+          endselect.
 *          if ls_Data1 is not initial.
 
           wa_head-event_no = ls_data1-eventid.
@@ -2117,12 +2147,12 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
               header = header
             tables
               lines  = lt_lines
-* EXCEPTIONS
-*             ID     = 1
-*             LANGUAGE                = 2
-*             NAME   = 3
-*             OBJECT = 4
-*             OTHERS = 5
+            exceptions
+              id       = 1
+              language = 2
+              name     = 3
+              object   = 4
+              others   = 5
             .
           if sy-subrc <> 0.
 * Implement suitable error handling here
@@ -2191,12 +2221,12 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
               header = header
             tables
               lines  = lt_lines
-* EXCEPTIONS
-*             ID     = 1
-*             LANGUAGE                = 2
-*             NAME   = 3
-*             OBJECT = 4
-*             OTHERS = 5
+            exceptions
+              id       = 1
+              language = 2
+              name     = 3
+              object   = 4
+              others   = 5
             .
           if sy-subrc <> 0.
 * Implement suitable error handling here
@@ -2509,8 +2539,10 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
             else.
 
 
-              select single * from zrfq_attachment into @Gs_NFAatt
-                where nfaid = @nfaatt-nfaid and doknr = @nfaatt-docid.
+              select * from zrfq_attachment into @Gs_NFAatt up to 1 rows
+                where nfaid = @nfaatt-nfaid and doknr = @nfaatt-docid
+                order by dokvr descending.
+              endselect.
 
               ls_NFAATT-NFAid = ls_data1-nfaid.
               ls_NFAATT-dokar        = Gs_NFAatt-dokar.
@@ -2545,7 +2577,9 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           endif.
 
 
-          select single gen_category from zrfq_header into @lv_gen_category where event_no = @ls_data1-eventid.
+          select gen_category from zrfq_header into @lv_gen_category up to 1 rows where event_no = @ls_data1-eventid
+            order by gen_category.
+          endselect.
           if sy-subrc is initial.
 
 
@@ -2687,16 +2721,18 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 *                     and nfaamt = @lv_amt
 *                     and opex_capex = @wa_head-opex_capex.
 
-            select single
+            select
                      *
                      from zgnfa_approval
-                     into @ls_APPROVAL
+                     into @ls_APPROVAL up to 1 rows
                      where nfatype     = @WA_head-nfa_type
                      and gencat        = @lv_gen_category
                      and ekgrp         = @wa_head-ekgrp
                      and opex_capex    = @wa_head-opex_capex
                      and amount_from  <= @lv_totamt
-                     and amount_to    >= @lv_totamt.
+                     and amount_to    >= @lv_totamt
+              order by primary key.
+            endselect.
 *---------------EOC Ali on 03.08.2026----------------*
             if sy-subrc is initial.
               select single * from zdepartment_det into @ls_department_det where pur_grp = @wa_head-ekgrp.
@@ -5680,7 +5716,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                   i_nfaid    = lv_nfaid
                   i_emailto  = lt_emailto
                   i_emailcc  = lt_emailcc
-                  i_subject  = |Approval Request – NFA { wa_head-nfa_id alpha = out }|
+                  i_subject  = replace( val = text-003 sub = '&1' with = |{ wa_head-nfa_id alpha = out }| )
                   i_content  = 'MAIL1'
                 importing
                   return     = lv_return                 " Character Field with Length 10
@@ -5712,7 +5748,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                   i_buyer   = lv_buyer
                   i_nfaid   = lv_nfaid
                   i_emailto = lt_emailto
-                  i_subject = 'Approver Details Missing for NFA Approval'
+                  i_subject = conv #( text-004 )
                   i_content = 'MAIL2'
                 importing
                   return    = lv_return                 " Character Field with Length 10
@@ -5721,7 +5757,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                 raise exception type /iwbep/cx_mgw_busi_exception
                   exporting
                     textid  = /iwbep/cx_mgw_busi_exception=>business_error
-                    message = 'Internal server error. Please contact Azure Team'.
+                    message = text-005.
               endif.
             endif.
 
@@ -5734,8 +5770,8 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           modify zgnfa_item from table @it_data.
           modify Znfa_vdd from table @it_vdd.
           if ls_hist is not initial.
-            modify zGnfa_histORY from ls_hist.
-            if sy-subrc is initial.
+            insert zgnfa_history from ls_hist.
+            if sy-subrc is initial or sy-subrc = 4.
               commit work and wait.
 *----------------Email for Vendor Extention--------------------------*
               loop at it_data assigning field-symbol(<fs_data>).
@@ -5764,7 +5800,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                       i_bukrs     = |{ ls_edata-bukrs }|
                       i_emailto   = lt_emailto
 *                     i_emailcc   = lt_emailcc
-                      i_subject   = |Vendor Code Extension|
+                      i_subject   = conv #( text-006 )
                       i_content   = 'MAIL7'
                     importing
                       return      = lv_return                 " Character Field with Length 10
@@ -5781,11 +5817,13 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 
         if LS_data1-button = 'A' or LS_data1-button = 'R'.
 
-          select single
+          select
             *
             from znfa_headER
-            into @wa_head
-            where nfa_id = @ls_data1-nfaid.
+            into @wa_head up to 1 rows
+            where nfa_id = @ls_data1-nfaid
+            order by primary key.
+          endselect.
           if wa_head is not initial.
             if LS_data1-button = 'A'.
               wa_head-alevel = wa_head-alevel + 1.
@@ -5806,7 +5844,9 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
               from zgnfa_item
               into  @lv_totamt
               where eventid = @wa_head-event_no.
-            select single gen_category from zrfq_header into @lv_gen_category where event_no = @wa_head-event_no.
+            select gen_category from zrfq_header into @lv_gen_category up to 1 rows where event_no = @wa_head-event_no
+              order by gen_category.
+            endselect.
             if sy-subrc is initial.
 *---------------BOC Ali on 03.08.2026----------------*
 * Amount band derivation removed.  The approval strategy is now read directly
@@ -5947,16 +5987,18 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 *                 and nfaamt = @lv_amt
 *                 and opex_capex = @wa_head-opex_capex.
 
-              select single
+              select
                  *
                  from zgnfa_approval
-                 into @ls_APPROVAL
+                 into @ls_APPROVAL up to 1 rows
                  where nfatype     = @wa_head-nfa_type
                  and gencat        = @lv_gen_category
                  and ekgrp         = @wa_head-ekgrp
                  and opex_capex    = @wa_head-opex_capex
                  and amount_from  <= @lv_totamt
-                 and amount_to    >= @lv_totamt.
+                 and amount_to    >= @lv_totamt
+                order by primary key.
+              endselect.
 *---------------EOC Ali on 03.08.2026----------------*
 
 
@@ -8852,7 +8894,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                           i_nfaid    = lv_nfaid
                           i_emailto  = lt_emailto
                           i_emailcc  = lt_emailcc
-                          i_subject  = |Approval Request – NFA { wa_head-nfa_id alpha = out }|
+                          i_subject  = replace( val = text-003 sub = '&1' with = |{ wa_head-nfa_id alpha = out }| )
                           i_content  = 'MAIL1'
                         importing
                           return     = lv_return                 " Character Field with Length 10
@@ -8871,7 +8913,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                             i_nfaid   = lv_nfaid
                             i_emailto = lt_emailto
                             i_emailcc = lt_emailcc
-                            i_subject = |NFA Approved – Proceed for PO Creation|
+                            i_subject = conv #( text-007 )
                             i_content = 'MAIL3'
                           importing
                             return    = lv_return                 " Character Field with Length 10
@@ -8884,7 +8926,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                             i_reason   = ls_data1-remark
                             i_emailto  = lt_emailto
                             i_emailcc  = lt_emailcc
-                            i_subject  = |NFA Rejected|
+                            i_subject  = conv #( text-008 )
                             i_content  = 'MAIL5'
                           importing
                             return     = lv_return                 " Character Field with Length 10
@@ -8895,7 +8937,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                       raise exception type /iwbep/cx_mgw_busi_exception
                         exporting
                           textid  = /iwbep/cx_mgw_busi_exception=>business_error
-                          message = 'Internal server error. Please contact Azure Team'.
+                          message = text-005.
                     endif.
 
                   endif.
@@ -8907,8 +8949,8 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                   if sy-subrc is initial.
                     commit work and wait.
                     if ls_hist is not initial.
-                      modify zGnfa_histORY from ls_hist.
-                      if sy-subrc is initial.
+                      insert zgnfa_history from ls_hist.
+                      if sy-subrc is initial or sy-subrc = 4.
                         commit work and wait.
                       endif.
                     endif.
@@ -8926,9 +8968,11 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                         ls_applog-appr_role = <lv_appr_role>.
                       endif.
                       ls_applog-approver_id = lv_loginid.
-                      select single name, emailid from zrfq_user_master
+                      select name, emailid from zrfq_user_master
                         where id = @lv_loginid
-                        into ( @ls_applog-approver_name, @ls_applog-approver_email ).
+                        order by name, emailid
+                        into ( @ls_applog-approver_name, @ls_applog-approver_email ) up to 1 rows.
+                      endselect.
                       ls_applog-remark      = ls_data1-remark.
                       ls_applog-approved_on = sy-datum.
                       ls_applog-approved_at = sy-uzeit.
@@ -8971,7 +9015,9 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
             append value #( prnumber = ls_podatai-prnumber pritem = ls_podatai-pritem lifnr = ls_podatai-vendor bukrs = ls_podatai-companycode dOctype = ls_podatai-doctype ) to lt_data.
           endloop.
           if lv_nfaid1 is not initial and lt_data is not initial.
-            select single eventid from zgnfa_item into @lv_eventid where nfaid = @lv_nfaid1.
+            select eventid from zgnfa_item into @lv_eventid up to 1 rows where nfaid = @lv_nfaid1
+              order by eventid.
+            endselect.
             if lv_eventid is not initial.
               call method me->po_create
                 exporting
@@ -8986,7 +9032,9 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
               clear ls_podata.
 *-------------------Email--------------------------------------------*
               select single ekgrp,opex_capex from znfa_header into @data(ls_head) where event_no = @lv_eventid.
-              select single gen_category from zrfq_header into @lv_gen_category where event_no = @lv_eventid.
+              select gen_category from zrfq_header into @lv_gen_category up to 1 rows where event_no = @lv_eventid
+                order by gen_category.
+              endselect.
               if sy-subrc is initial.
                 select
   sum( totamt ) as totamt
@@ -9139,16 +9187,18 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 *                         and ekgrp = @ls_head-ekgrp
 *                         and opex_capex = 'Opex'.
 
-                select single
+                select
                          *
                          from zgnfa_approval
-                         into @ls_APPROVAL
+                         into @ls_APPROVAL up to 1 rows
                          where nfatype      = 'GENERAL'
                          and gencat         = @lv_gen_category
                          and ekgrp          = @ls_head-ekgrp
-                         and opex_capex     = 'Opex'
+                         and opex_capex     = @lc_opex
                          and amount_from   <= @lv_totamt
-                         and amount_to     >= @lv_totamt.
+                         and amount_to     >= @lv_totamt
+                  order by primary key.
+                endselect.
 *---------------EOC Ali on 03.08.2026----------------*
                 if sy-subrc is initial.
                   select single * from zdepartment_det into @ls_department_det where pur_grp = @ls_head-ekgrp.
@@ -9802,7 +9852,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                       i_po        = lv_po
                       i_emailto   = lt_emailto
                       i_emailcc   = lt_emailcc
-                      i_subject   = |PO Created { ls_return-ponumber }|
+                      i_subject   = replace( val = text-009 sub = '&1' with = ls_return-ponumber )
                       i_content   = 'MAIL4'
                     importing
                       return      = lv_return                 " Character Field with Length 10
@@ -9837,6 +9887,11 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 * | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method /iwbep/if_mgw_appl_srv_runtime~get_expanded_entity.
+    constants: lc_quoted        type c length 6  value 'Quoted' ##NO_TEXT,
+               lc_bid_complete  type c length 12 value 'Bid Complete' ##NO_TEXT,
+               lc_round_closed  type c length 12 value 'Round Closed' ##NO_TEXT,
+               lc_existing      type c length 8  value 'Existing' ##NO_TEXT,
+               lc_new           type c length 3  value 'New' ##NO_TEXT.
 
 
     data : ls_data      type ZCL_ZRFQ_GENERALNFA_PR_mpc_ext=>ty_data,
@@ -9933,17 +9988,17 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 
           if sy-subrc = 0.
             data : msg type bapi_msg.
-            msg = |{ 'NFAID:-' && nfaidd && 'Already Created For This Event Number' }|.
+            msg = replace( val = text-010 sub = '&1' with = nfaidd ).
             raise exception type /iwbep/cx_mgw_busi_exception
               exporting
                 textid  = /iwbep/cx_mgw_busi_exception=>business_error
                 message = msg.
           endif.
+          data lv_no_bukrs type bukrs.
           select from zrfq_header as d inner join
             zrfq_item as a on ( a~event_no = d~event_no
             and a~rfqid = d~rfqid )
             left outer join eban as b on ( b~banfn = a~prnumber and b~bnfpo = a~pritem )
-            left outer join t001k as c on ( c~bwkey =  a~werks )
             fields
             a~event_no,
             a~rfqid,
@@ -9964,11 +10019,19 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
             b~preis,
             b~peinh,
             b~waers,
-            c~bukrs,
+            @lv_no_bukrs as bukrs,
             d~rfqstatus
             where a~event_no = @lv_eventid
-            and d~rfqstatus in ( 'Bid Complete' , 'Round Closed' )
+            and d~rfqstatus in ( @lc_bid_complete , @lc_round_closed )
             into table @data(it_d).
+          if it_d is not initial.
+            select bwkey, bukrs from t001k into table @data(lt_t001k_d)
+              for all entries in @it_d
+              where bwkey = @it_d-werks.
+            loop at it_d assigning field-symbol(<ls_d_bukrs>).
+              <ls_d_bukrs>-bukrs = value #( lt_t001k_d[ bwkey = <ls_d_bukrs>-werks ]-bukrs optional ).
+            endloop.
+          endif.
 
           sort it_d by round descending.
 *          read table it_d into data(ww) index 1.
@@ -10012,7 +10075,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
                and a~event_no = b~event_no  )
               where b~event_no = @lv_eventid
                 and b~round = @ww-round
-                and b~bidstatus = 'Quoted'
+                and b~bidstatus = @lc_quoted
               into table @data(it_bidsub1) .
 
             ls_data-eventid = lv_eventid.
@@ -10054,7 +10117,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 
         endif.
 
-        delete  ls_Data-nfaheadertonfaitemnp where  bidstatus ne 'Quoted'.
+        delete  ls_Data-nfaheadertonfaitemnp where  bidstatus ne lc_quoted.
 
 *---------------BOC Ali on 11.08.2026 (Amount formatting)----------------*
         ls_data-totalnfaamt = me->format_amount( iv_amount = ls_data-totalnfaamt ).
@@ -10159,8 +10222,10 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
         clear :  id , language , name1 , object ,ls_lines.
         refresh : lines.
 
-        select single  from znfa_header fields * where nfa_id = @ls_wkeys-nfaid
- into @data(nfa_head).
+        select  from znfa_header fields event_no, justification, justification2, justification3, justification4, scope, scope2, tot_bud_amt, tot_nfa_amt, vend_short where nfa_id = @ls_wkeys-nfaid
+ order by event_no
+          into @data(nfa_head) up to 1 rows.
+        endselect.
         lv_eventid = |{ nfa_head-event_no alpha = in }|.
 
         select min( unitamt ) as unit_amt , min( totamt ) as totamt , supplier , suppliername as vendorname ,supplierref, event_no , lineitem , cast( '  '  as char( 2 ) ) as ranking
@@ -10196,7 +10261,6 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           where event_no = @lv_eventid into @data(totquoted).
 
         select from zrfq_item as a left outer join eban as b on ( b~banfn = a~prnumber and b~bnfpo = a~pritem )
-  left outer join t001k as c on ( c~bwkey =  a~werks )
   fields
   a~event_no,
   a~rfqid,
@@ -10217,11 +10281,20 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
   b~preis,
   b~peinh,
   b~waers,
-  c~bukrs
+  @lv_no_bukrs as bukrs
 
   where event_no = @lv_eventid and
   round   = ( select max( round ) from zrfq_item where event_no = @lv_eventid )
+  order by a~event_no, a~rfqid, a~round, a~lineitem
   into table @it_data.
+        if it_data is not initial.
+          select bwkey, bukrs from t001k into table @data(lt_t001k_1)
+            for all entries in @it_data
+            where bwkey = @it_data-werks.
+          loop at it_data assigning field-symbol(<ls_data_bukrs1>).
+            <ls_data_bukrs1>-bukrs = value #( lt_t001k_1[ bwkey = <ls_data_bukrs1>-werks ]-bukrs optional ).
+          endloop.
+        endif.
 
         select event_no , supplierref , tech_acc , suppassacc , totamt , totamttax , currency, ranking
           from zrfq_bid_comp into table @data(it_comp) where event_no =  @lv_eventid.
@@ -10232,16 +10305,18 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
         select from zvend_onbrd as a inner join @it_zgnfa_item as b on ( b~supplierref = a~dummy_vendor )
                     left outer join zvendomform as c on ( c~reqnr =  a~dummy_vendor )
                      fields a~lifnr,a~status , c~msme , a~dummy_vendor,
-                    case when  lifnr is not initial then 'Existing' else 'New' end as status_1
+                    case when  lifnr is not initial then @lc_existing else @lc_new end as status_1
                     into table @data(it_ZVEND_ONBRD).
 
         data(it_gnfaitem1) = it_ZGNFA_ITEM[].
         sort it_ZGNFA_ITEM by supplierref.
         delete adjacent duplicates from it_ZGNFA_ITEM comparing supplierref.
 
-        select  risk_rate ,vendorcode from zvdd_master for all entries in @it_ZGNFA_ITEM
-          where vendorcode = @it_ZGNFA_ITEM-awardedsupplier
-          into table @data(it_risk).
+        if it_ZGNFA_ITEM is not initial.
+          select  risk_rate ,vendorcode from zvdd_master for all entries in @it_ZGNFA_ITEM
+            where vendorcode = @it_ZGNFA_ITEM-awardedsupplier
+            into table @data(it_risk).
+        endif.
 
 
         """""""""COMM RANKING""""""""""
@@ -10395,7 +10470,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           from zrfq_head_bid_re
          where event_no = @lv_eventid
            and round = @lv_latest_round1
-          and bidstatus = 'Quoted'.
+          and bidstatus = @lc_quoted.
 
         if lv_vendor_count1 = 1.
           ls_wdata-commdiff = 0.
@@ -10430,13 +10505,19 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 
         lv_eventid = |{ ls_keys1-eventid alpha = in }|.
         if lv_eventid is initial.
-          select single from znfa_header fields event_no  where nfa_id =  @ls_keys1-nfaid
-            into @lv_eventid.
-          select single category , gen_category  , function from zrfq_header where event_no = @lv_eventid
-            into @data(app_d).
+          select from znfa_header fields event_no  where nfa_id =  @ls_keys1-nfaid
+            order by event_no
+            into @lv_eventid up to 1 rows.
+          endselect.
+          select category , gen_category  , function from zrfq_header where event_no = @lv_eventid
+            order by category, gen_category, function
+            into @data(app_d) up to 1 rows.
+          endselect.
         endif.
-        select single category , gen_category , function from zrfq_header where event_no = @lv_eventid
-          into @app_d.
+        select category , gen_category , function from zrfq_header where event_no = @lv_eventid
+          order by category, gen_category, function
+          into @app_d up to 1 rows.
+        endselect.
 
         select from zgnfa_item fields distinct awardedsupplier , supplierref
         where eventid = @lv_eventid into table @data(it_awsup).
@@ -10569,7 +10650,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 *        translate lv_nfaamt to upper case.
 **---------------EOC Ali/Vishweshwar on 19.06.2026 15:42:42----------------*
 
-        select single
+        select
           from zgnfa_approval
           fields approvalst
           where gencat       = @app_d-gen_category
@@ -10578,12 +10659,13 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
             and nfatype      = 'GENERAL'
             and amount_from <= @lv_totamt
             and amount_to   >= @lv_totamt
-          into @data(grpdt).
+          order by approvalst
+          into @data(grpdt) up to 1 rows.
+        endselect.
 *---------------EOC Ali on 03.08.2026----------------*
 
 
-        select from zrfq_item as a left outer join
-           t001k as c on ( c~bwkey =  a~werks )
+        select from zrfq_item as a
        left outer join   eban as b on ( b~banfn = a~prnumber and b~bnfpo = a~pritem )
             fields
              a~event_no,
@@ -10605,13 +10687,24 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
             b~preis,
             b~peinh,
             b~waers,
-            c~bukrs
+            @lv_no_bukrs as bukrs
             where event_no = @lv_eventid and
             round   = ( select max( round ) from zrfq_item where event_no = @lv_eventid )
+            order by a~event_no, a~rfqid, a~round, a~lineitem
             into table @it_data.
+        if it_data is not initial.
+          select bwkey, bukrs from t001k into table @data(lt_t001k_2)
+            for all entries in @it_data
+            where bwkey = @it_data-werks.
+          loop at it_data assigning field-symbol(<ls_data_bukrs2>).
+            <ls_data_bukrs2>-bukrs = value #( lt_t001k_2[ bwkey = <ls_data_bukrs2>-werks ]-bukrs optional ).
+          endloop.
+        endif.
 
-        select single * from zrfq_header into @data(wa_head) where event_no = @lv_eventid." AND rfqid = @LS_KEYS-rfqid.
-        select * from zrfq_item into table @lt_item where event_no = @lv_eventid." AND rfqid = @LS_KEYS-rfqid.
+        select * from zrfq_header into @data(wa_head) up to 1 rows where event_no = @lv_eventid
+          order by primary key." AND rfqid = @LS_KEYS-rfqid.
+        endselect.
+        select * from zrfq_item into table @lt_item where event_no = @lv_eventid order by primary key." AND rfqid = @LS_KEYS-rfqid.
 
         data(countl) = lines( lt_item ).
 
@@ -10661,27 +10754,37 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           endif.
 
         endloop.
-        select ekko~ebeln,
-              ekko~aedat,
-              ekko~lifnr,
-              ekpo~matnr,
-              ekpo~werks
-         into table @data(it_last)
-         from ekko
-         inner join ekpo
-           on ekko~ebeln = ekpo~ebeln
-         for all entries in @lt_item
-         where ekpo~matnr = @lt_item-matnr
-           and ekpo~werks = @lt_item-werks.
+        if lt_item is not initial.
+          select ekko~ebeln,
+                ekko~aedat,
+                ekko~lifnr,
+                ekpo~matnr,
+                ekpo~werks
+           into table @data(it_last)
+           from ekko
+           inner join ekpo
+             on ekko~ebeln = ekpo~ebeln
+           for all entries in @lt_item
+           where ekpo~matnr = @lt_item-matnr
+             and ekpo~werks = @lt_item-werks.
+        endif.
 
         sort it_last by matnr aedat descending.
         delete adjacent duplicates from it_last comparing matnr.
 
-        select a~ebeln , a~lifnr , a~aedat , a~matnr , a~werks , sum( b~netwr ) as povalue , d~ort01
+        data lv_no_ort01 type t001w-ort01.
+        select a~ebeln , a~lifnr , a~aedat , a~matnr , a~werks , sum( b~netwr ) as povalue , @lv_no_ort01 as ort01
         from @it_last as a inner join ekpo as b on ( b~ebeln = a~ebeln and b~matnr = a~matnr and b~werks = a~werks )
-          left outer join t001w as d on ( d~werks = b~werks )
-          group by a~ebeln , a~lifnr , a~aedat , a~matnr , a~werks , d~ort01
+          group by a~ebeln , a~lifnr , a~aedat , a~matnr , a~werks
           into table @data(it_lastpo).
+        if it_lastpo is not initial.
+          select werks, ort01 from t001w into table @data(lt_t001w_ort)
+            for all entries in @it_lastpo
+            where werks = @it_lastpo-werks.
+          loop at it_lastpo assigning field-symbol(<ls_lastpo_ort>).
+            <ls_lastpo_ort>-ort01 = value #( lt_t001w_ort[ werks = <ls_lastpo_ort>-werks ]-ort01 optional ).
+          endloop.
+        endif.
 
         sort it_bid by  lineitem supplierref ascending.
 
@@ -10733,12 +10836,14 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           endloop.
         endloop.
 
-        select * from zrfq_head_bid_re
-           for all entries in @it_SUPPLIER
-           where
-           supplierref =  @it_SUPPLIER-SUPPLIERref  and
-            event_no = @lv_eventid
-           into table @data(it_tc).
+        if it_SUPPLIER is not initial.
+          select * from zrfq_head_bid_re
+             for all entries in @it_SUPPLIER
+             where
+             supplierref =  @it_SUPPLIER-SUPPLIERref  and
+              event_no = @lv_eventid
+             into table @data(it_tc).
+        endif.
 
         sort it_tc by supplierref round descending.
 
@@ -10777,6 +10882,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           a~end_date,
           c~up_rel_date,
           c~act_buyer
+          order by a~start_date descending, c~act_buyer
            into table @data(it_rfq).
 *READ TABLE it_rfq INTO DATA()
 
@@ -10825,7 +10931,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           from zrfq_head_bid_re
          where event_no = @lv_eventid
            and round = @lv_latest_round
-          and bidstatus = 'Quoted'.
+          and bidstatus = @lc_quoted.
 
         select from zgnfa_item  fields count( distinct supplierref ) as AWARDEDSUPPLIERcount
                  where eventid = @lv_eventid into @data(AWARDEDSUPPLIERcount).
@@ -10841,7 +10947,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           select from zvend_onbrd as a inner join @it_zgnfa_item as b on ( b~supplierref = a~dummy_vendor )
             left outer join zvendomform as c on ( c~reqnr =  a~dummy_vendor )
              fields a~lifnr,a~status , c~msme , a~dummy_vendor,
-            case when  lifnr is not initial then 'Existing' else 'New' end as status_1
+            case when  lifnr is not initial then @lc_existing else @lc_new end as status_1
             into table @it_ZVEND_ONBRD.
 
           data(it_vd) = it_zgnfa_item[].
@@ -10861,7 +10967,9 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
         select event_no , supplierref , tech_acc , suppassacc , totamt , totamttax , currency, ranking
           from zrfq_bid_comp into table @it_comp where event_no =  @lv_eventid.
 
-        select single * from znfa_header into @data(nfa_h) where nfa_id =  @ls_keys1-nfaid.
+        select alevel, bidding_mode, genremarks, genremarks2, justification, justification2, justification3, justification4, order_split, other_deviations, pr_pending, quotes_invited, scope, scope2, selectionratio, unbudgeted from znfa_header into @data(nfa_h) up to 1 rows where nfa_id =  @ls_keys1-nfaid
+          order by alevel.
+        endselect.
 
         select min( unitamt ) as unit_amt , min( totamt ) as totamt , supplier , suppliername as vendorname ,supplierref, event_no , lineitem , cast( '  '  as char( 2 ) ) as ranking
           from zrfq_item_bid_re where event_no = @lv_eventid
@@ -10932,17 +11040,18 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 
 
 
-        select unitamt , totamt , event_no , supplier ,supplieRref ,lineitem
+        select distinct a~unitamt , a~totamt , a~event_no , a~supplier , a~supplieRref , a~lineitem
 
-          from zrfq_item_bid_re for all entries in @it_awsup
-           where supplierREF = @it_awsup-supplierref and
-          event_no =  @lv_eventid
-          and round = ( select max( round ) as round from zrfq_item where event_no =  @lv_eventid )
+          from zrfq_item_bid_re as a inner join @it_awsup as c on ( c~supplierref = a~supplierref )
+           where a~event_no =  @lv_eventid
+          and a~round = ( select max( round ) as round from zrfq_item where event_no =  @lv_eventid )
           into table @data(it_totamt).
 
 
-        select single * from zrfq_history
-          into  @data(rfqh) where eventno = @lv_eventid and action = 'RESUME'.
+        select value_new from zrfq_history
+          into  @data(rfqh) up to 1 rows where eventno = @lv_eventid and action = 'RESUME'
+          order by value_new.
+        endselect.
 
         select single * from zrfq_history
           into  @data(rfqEnd) where eventno = @lv_eventid and action = 'END'.
@@ -10957,9 +11066,9 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
         endif.
 
         if rfqend is not initial.
-          data(rfqclose) =   'Forced'.
+          data(rfqclose) =   text-011.
         else.
-          rfqclose = 'Auto'.
+          rfqclose = text-012.
         endif.
         clear : rfqend.
 
@@ -10974,8 +11083,10 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           from tinct into @data(deltermdesc) where
           inco1 = @wa_head-del_term and spras = 'E'.
 
-        select single text1 from t052u
-          where zterm = @wa_head-paymentterm and spras = 'E' into @data(paytermdesc).
+        select text1 from t052u
+          where zterm = @wa_head-paymentterm and spras = 'E' order by text1
+          into @data(paytermdesc) up to 1 rows.
+        endselect.
 
         select single description from zmm_t_ld
           where zuid = @WA_head-ld
@@ -10985,15 +11096,19 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           <gnfa>-awardedsupplier = |{ <gnfa>-awardedsupplier alpha = in }|.
         endloop.
 
-        select single * from zrfq_attachment
+        select * from zrfq_attachment
           where nfaid = @ls_keys1-nfaid and attachmenttype = 'BUSINESS_CASE'
-          into @data(ls_bcase).
+          order by dokvr descending
+          into @data(ls_bcase) up to 1 rows.
+        endselect.
         if ls_bcase is not initial.
           data(bcase) = 'X'.
         endif.
-        select single * from zrfq_attachment
+        select * from zrfq_attachment
           where nfaid = @ls_keys1-nfaid and attachmenttype = 'COST_BENEFIT'
-          into @data(ls_cb).
+          order by dokvr descending
+          into @data(ls_cb) up to 1 rows.
+        endselect.
         if ls_cb is not initial.
           data(costb) = 'YES'.
           else.
@@ -11081,7 +11196,9 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
         if lv_buyerid is initial.
           lv_buyerid = lv_loginid.
         endif.
-        select single name from zrfq_user_master into @data(lv_buyername1) where id = @lv_buyerid.
+        select name from zrfq_user_master into @data(lv_buyername1) up to 1 rows where id = @lv_buyerid
+          order by name.
+        endselect.
 
         ls_data1 = value #( eventid                   = lv_eventid
                             nfaid                     = ls_keys1-nfaid
@@ -11207,14 +11324,14 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
     remarks         = wa_tc-supplierremarks
     warrenty_dlp     = wa_tc-warrantyshort
     gcc          = cond #( when wa_tc-gcc_acc is not initial and wa_tc-remarks is not initial
-                           then 'Accepted WITH Remarks'
+                           then text-013
                            when wa_tc-gcc_acc is not initial
-                           then 'Accepted'
+                           then text-014
                            else '' )
     ldpercent          = cond #( when wa_tc-ldper is not initial and wa_tc-ld_delay_min is not initial and wa_tc-ld_delay_cap is not initial
                            then |{ wa_tc-ld_delay_min }% - { wa_tc-ld_delay_cap }%|
                            when wa_tc-ldper is not initial
-                           then 'Accepted'
+                           then text-014
                            else '' )
     vendor           = wa_tc-suppliername ) )
 
@@ -11333,13 +11450,13 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 
 
         append initial line to ls_data1-nfacomsummvenset assigning field-symbol(<fs_line>).
-        <fs_line>-deliveryloc = 'Total Price(Without GST)'.
+        <fs_line>-deliveryloc = text-015.
         unassign <fs_line>.
         append initial line to ls_data1-nfacomsummvenset assigning <fs_line>.
-        <fs_line>-deliveryloc = 'Total Price(With GST)'.
+        <fs_line>-deliveryloc = text-016.
         unassign <fs_line>.
         append initial line to ls_data1-nfacomsummvenset assigning <fs_line>.
-        <fs_line>-deliveryloc = 'Commercial Rank(with GST)'.
+        <fs_line>-deliveryloc = text-017.
 
         data(ls_data3) = ls_data1-nfacomsummvenset[ 1 ].
         sort ls_data3-compsummtocompsumvennp by vendorname.
@@ -11360,7 +11477,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
             endloop.
             " WITHOUT GST
             read table ls_data1-nfacomsummvenset assigning <fs_line>
-                 with key deliveryloc = 'Total Price(Without GST)'.
+                 with key deliveryloc = text-015.
             if sy-subrc is initial.
               append initial line to <fs_line>-compsummtocompsumvennp assigning field-symbol(<fs_line1>).
               <fs_line1>-vendorname = ls_data2-vendorname.
@@ -11369,7 +11486,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
             unassign <fs_line1>.
             " WITH GST
             read table ls_data1-nfacomsummvenset assigning <fs_line>
-                 with key deliveryloc = 'Total Price(With GST)'.
+                 with key deliveryloc = text-016.
             if sy-subrc is initial.
               append initial line to <fs_line>-compsummtocompsumvennp assigning <fs_line1>.
               <fs_line1>-vendorname = ls_data2-vendorname.
@@ -11383,7 +11500,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 
 
         read table ls_data1-nfacomsummvenset assigning <fs_line>
-            with key deliveryloc = 'Total Price(With GST)'.
+            with key deliveryloc = text-016.
         if sy-subrc = 0.
           loop at <fs_line>-compsummtocompsumvennp assigning <fs_line1>.
             clear ls_rank.
@@ -11413,11 +11530,11 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 
 
         read table ls_data1-nfacomsummvenset assigning <fs_line>
-            with key deliveryloc = 'Commercial Rank(with GST)'.
+            with key deliveryloc = text-017.
         if sy-subrc = 0.
           " structure create
           read table ls_data1-nfacomsummvenset assigning field-symbol(<fs_total>)
-               with key deliveryloc = 'Total Price(With GST)'.
+               with key deliveryloc = text-016.
           if sy-subrc = 0.
             loop at <fs_total>-compsummtocompsumvennp into data(ls_temp).
               append initial line to <fs_line>-compsummtocompsumvennp assigning <fs_line1>.
@@ -11452,14 +11569,18 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 
         """APPROVAL"""""""""""""""
 
-        select single * from znfa_header into @data(ls_gnfa) where
-          nfa_id =  @ls_keys1-nfaid ."and event_no = @lv_eventid.
+        select alevel, ekgrp, event_no, nfa_type, opex_capex from znfa_header into @data(ls_gnfa) up to 1 rows where
+          nfa_id =  @ls_keys1-nfaid
+          order by event_no."and event_no = @lv_eventid.
+        endselect.
 *
 *TRANSLATE ls_gnfa-nfa_type to UPPER CASE.
 *SELECT SINGLE CATEGORY , GEN_CATEGORY FROM ZRFQ_HEADER WHERE event_no = @lv_eventid
 *  INTO @DATA(APP_D).
 
-        select single gen_category from zrfq_header into @data(lv_gen_category) where event_no = @ls_gnfa-event_no.
+        select gen_category from zrfq_header into @data(lv_gen_category) up to 1 rows where event_no = @ls_gnfa-event_no
+          order by gen_category.
+        endselect.
 *---------------BOC Ali on 03.08.2026----------------*
 * Amount band derivation removed.  The approval strategy is now read directly
 * with the NFA total amount against the new AMOUNT_FROM / AMOUNT_TO range
@@ -11586,14 +11707,16 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 *        translate lv_nfaamt to upper case.
 **---------------EOC Ali/Vishweshwar on 19.06.2026 15:42:42----------------*
 
-        select single * from zgnfa_approval where
+        select * from zgnfa_approval where
           nfatype = @ls_gnfa-nfa_type and
           opex_capex = @ls_gnfa-opex_capex and
           gencat = @lv_gen_category  and
           ekgrp = @ls_gnfa-ekgrp and
           amount_from <= @lv_totamt and
           amount_to   >= @lv_totamt
-           into  @data(wa_APP).
+           order by primary key
+          into  @data(wa_APP) up to 1 rows.
+        endselect.
 *---------------EOC Ali on 03.08.2026----------------*
         select single * from zdepartment_det into @data(ls_department_det) where pur_grp = @ls_gnfa-ekgrp.
         if sy-subrc is initial.
@@ -11657,7 +11780,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
             endloop.
           endif.
         endif.
-        select * from zroles into table @data(lt_roles).
+        select role, description from zroles into table @data(lt_roles) where role <> @space.
 
 
         select id, name from zrfq_user_master into table @data(lt_USER_MASTER)  where id = @ls_DEPARTMENT_DET-hod_user_department+0(10)
@@ -12753,6 +12876,8 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 * | [!CX!] /IWBEP/CX_MGW_TECH_EXCEPTION
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method /iwbep/if_mgw_appl_srv_runtime~get_stream.
+    constants: lc_content_disp type string value 'Content-Disposition' ##NO_TEXT,
+               lc_attach_utf8  type string value 'attachment; filename*=UTF-8''''' ##NO_TEXT.
 
     data: ls_key_tab      type /iwbep/s_mgw_name_value_pair,
           pritmkey        type drad-objky,
@@ -12780,13 +12905,15 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           docid = ls_key_tab-value.
         endif.
 
-        select single from zrfq_attachment
+        select from zrfq_attachment
           fields
                dokar,
                doknr,
                dokvr,
                doktl
-          where nfaid = @nfaid and doknr = @docid into @data(ls_rfqatt).
+          where nfaid = @nfaid and doknr = @docid order by dokvr descending
+          into @data(ls_rfqatt) up to 1 rows.
+        endselect.
 
         try.
             call method zcl_supp_portal_utility=>retrieve_file_from_dms
@@ -12803,11 +12930,11 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           catch /iwbep/cx_mgw_tech_exception .
         endtry.
 
-        ls_header-name = 'Content-Disposition'.
+        ls_header-name = lc_content_disp.
         lv_filename_str = lv_file_name.
         lv_name_utf8 = cl_http_utility=>if_http_utility~escape_url( unescaped = lv_filename_str ).
         replace all occurrences of '%2e' in lv_name_utf8 with '.'.
-        concatenate 'attachment; filename*=UTF-8''''' lv_name_utf8 into ls_header-value.
+        concatenate lc_attach_utf8 lv_name_utf8 into ls_header-value.
         set_header( is_header = ls_header ).
 
 
@@ -12822,13 +12949,15 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           docid = ls_key_tab-value.
         endif.
 
-        select single from zrfq_attachment
+        select from zrfq_attachment
           fields
                dokar,
                doknr,
                dokvr,
                doktl
-          where nfaid = @nfaid and doknr = @docid into @ls_rfqatt.
+          where nfaid = @nfaid and doknr = @docid order by dokvr descending
+          into @ls_rfqatt up to 1 rows.
+        endselect.
 
         try.
             call method zcl_supp_portal_utility=>retrieve_file_from_dms
@@ -12845,11 +12974,11 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           catch /iwbep/cx_mgw_tech_exception .
         endtry.
 
-        ls_header-name = 'Content-Disposition'.
+        ls_header-name = lc_content_disp.
         lv_filename_str = lv_file_name.
         lv_name_utf8 = cl_http_utility=>if_http_utility~escape_url( unescaped = lv_filename_str ).
         replace all occurrences of '%2e' in lv_name_utf8 with '.'.
-        concatenate 'attachment; filename*=UTF-8''''' lv_name_utf8 into ls_header-value.
+        concatenate lc_attach_utf8 lv_name_utf8 into ls_header-value.
         set_header( is_header = ls_header ).
 
 
@@ -12864,13 +12993,15 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           docid = ls_key_tab-value.
         endif.
 
-        select single from zrfq_attachment
+        select from zrfq_attachment
           fields
                dokar,
                doknr,
                dokvr,
                doktl
-          where nfaid = @nfaid and doknr = @docid into @ls_rfqatt.
+          where nfaid = @nfaid and doknr = @docid order by dokvr descending
+          into @ls_rfqatt up to 1 rows.
+        endselect.
 
         try.
             call method zcl_supp_portal_utility=>retrieve_file_from_dms
@@ -12887,11 +13018,11 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           catch /iwbep/cx_mgw_tech_exception .
         endtry.
 
-        ls_header-name = 'Content-Disposition'.
+        ls_header-name = lc_content_disp.
         lv_filename_str = lv_file_name.
         lv_name_utf8 = cl_http_utility=>if_http_utility~escape_url( unescaped = lv_filename_str ).
         replace all occurrences of '%2e' in lv_name_utf8 with '.'.
-        concatenate 'attachment; filename*=UTF-8''''' lv_name_utf8 into ls_header-value.
+        concatenate lc_attach_utf8 lv_name_utf8 into ls_header-value.
         set_header( is_header = ls_header ).
 
       when 'GetPRAttachmentSet'.
@@ -12910,13 +13041,15 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
         endif.
 
 
-        select single from drad
+        select from drad
           fields
                dokar,
                doknr,
                dokvr,
                doktl
-          where objky = @lv_key  into @ls_rfqatt.
+          where objky = @lv_key  order by dokvr descending
+          into @ls_rfqatt up to 1 rows.
+        endselect.
 
         try.
             call method zcl_supp_portal_utility=>retrieve_file_from_dms
@@ -12934,11 +13067,11 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           catch /iwbep/cx_mgw_tech_exception .
         endtry.
 
-        ls_header-name = 'Content-Disposition'.
+        ls_header-name = lc_content_disp.
         lv_filename_str = lv_file_name.
         lv_name_utf8 = cl_http_utility=>if_http_utility~escape_url( unescaped = lv_filename_str ).
         replace all occurrences of '%2e' in lv_name_utf8 with '.'.
-        concatenate 'attachment; filename*=UTF-8''''' lv_name_utf8 into ls_header-value.
+        concatenate lc_attach_utf8 lv_name_utf8 into ls_header-value.
         set_header( is_header = ls_header ).
 
 
@@ -12953,13 +13086,15 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           docid = ls_key_tab-value.
         endif.
 
-        select single from zrfq_attachment
+        select from zrfq_attachment
           fields
                dokar,
                doknr,
                dokvr,
                doktl
-          where rfqid = @rfqid and doknr = @docid into corresponding fields of @ls_rfqatt.
+          where rfqid = @rfqid and doknr = @docid order by dokvr descending
+          into corresponding fields of @ls_rfqatt up to 1 rows.
+        endselect.
 
         try.
             call method zcl_supp_portal_utility=>retrieve_file_from_dms
@@ -12976,11 +13111,11 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           catch /iwbep/cx_mgw_tech_exception .
         endtry.
 
-        ls_header-name = 'Content-Disposition'.
+        ls_header-name = lc_content_disp.
         lv_filename_str = lv_file_name.
         lv_name_utf8 = cl_http_utility=>if_http_utility~escape_url( unescaped = lv_filename_str ).
         replace all occurrences of '%2e' in lv_name_utf8 with '.'.
-        concatenate 'attachment; filename*=UTF-8''''' lv_name_utf8 into ls_header-value.
+        concatenate lc_attach_utf8 lv_name_utf8 into ls_header-value.
         set_header( is_header = ls_header ).
       when 'GetBidAttachmentSet'.
 
@@ -12999,7 +13134,7 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
 *          data(quoID) = ls_key_tab-value.
 *        endif.
 
-        select single from zrfq_attachment
+        select from zrfq_attachment
           fields
                dokar,
                doknr,
@@ -13008,7 +13143,9 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           where rfqid = @rfqid
 *          and quotationid = @quoid
           and
-          doknr = @docid into @data(LS_bidATT).
+          doknr = @docid order by dokvr descending
+          into @data(LS_bidATT) up to 1 rows.
+        endselect.
 
         try.
             call method zcl_supp_portal_utility=>retrieve_file_from_dms
@@ -13025,11 +13162,11 @@ CLASS ZCL_ZRFQ_GENERALNFA_PR_DPC_EXT IMPLEMENTATION.
           catch /iwbep/cx_mgw_tech_exception .
         endtry.
 
-        ls_header-name = 'Content-Disposition'.
+        ls_header-name = lc_content_disp.
         lv_filename_str = lv_file_name.
         lv_name_utf8 = cl_http_utility=>if_http_utility~escape_url( unescaped = lv_filename_str ).
         replace all occurrences of '%2e' in lv_name_utf8 with '.'.
-        concatenate 'attachment; filename*=UTF-8''''' lv_name_utf8 into ls_header-value.
+        concatenate lc_attach_utf8 lv_name_utf8 into ls_header-value.
         set_header( is_header = ls_header ).
 
     endcase.
@@ -13709,7 +13846,7 @@ data : ls_data type ZCL_ZRFQ_GENERALNFA_PR_mpc=>ts_cancelnfa.
     EVENTNO = |%{ EVENTNO }%|.
     if eventno  is initial.
       select  distinct event_no as EventID
-        from zrfq_header into table @et_entityset.
+        from zrfq_header where event_no <> @space into table @et_entityset.
     else.
       select  distinct event_no as EventID
       from zrfq_header where event_no like @eventno  into table @et_entityset.
@@ -13825,9 +13962,11 @@ data : ls_data type ZCL_ZRFQ_GENERALNFA_PR_mpc=>ts_cancelnfa.
 
     data: it_list type table of abaplist.
 
-    SUBMIT gpe381prrwwfxd8mghe37mhg991200
-  VIA SELECTION-SCREEN
-  AND RETURN.
+*   SUBMIT ... VIA SELECTION-SCREEN cannot run inside an OData request
+*   (no dialog) and its result was not used - removed (ATC)
+*    SUBMIT gpe381prrwwfxd8mghe37mhg991200
+*  VIA SELECTION-SCREEN
+*  AND RETURN.
 
 *    submit gpe381prrwwfxd8mghe37mhg991200
 *    WITH $4FFIKRS = 'AEPC'
@@ -13934,8 +14073,12 @@ data : ls_data type ZCL_ZRFQ_GENERALNFA_PR_mpc=>ts_cancelnfa.
     data : lv_nfaid type char10.
 
     if iv_filter_string is not initial.
-      find regex `'([^']+)'` in iv_filter_string submatches data(lv_value).
-      lv_nfaid = lv_value.
+      try.
+          lv_nfaid = segment( val = iv_filter_string sep = `'` index = 2 ).
+        catch cx_sy_strg_par_val.
+          clear lv_nfaid.
+      endtry.
+      data lv_no_batxt type t161t-batxt.
       select
         a~prnumber,
         a~pritem,
@@ -13950,14 +14093,21 @@ data : ls_data type ZCL_ZRFQ_GENERALNFA_PR_mpc=>ts_cancelnfa.
         a~taxcode,
         a~bukrs,
         b~ebeln,
-        D~BATXT
+        @lv_no_batxt as batxt,
+        c~bsart
         from zgnfa_item as a LEFT OUTER join eban as b on ( b~banfn = a~prnumber and b~bnfpo = a~pritem )
         LEFT outer join ekko as c on ( c~ebeln = b~ebeln )
-        LEFT OUTER join T161T as d on ( d~bsart = c~bsart and d~spras = 'E' )
         into table @data(lt_data)
         where nfaid = @lv_nfaid.
       if lt_data is not initial.
-        sort lt_data.
+        select bsart, batxt from t161t into table @data(lt_t161t)
+          for all entries in @lt_data
+          where spras = 'E'
+            and bsart = @lt_data-bsart.
+        loop at lt_data assigning field-symbol(<ls_data_batxt>).
+          <ls_data_batxt>-batxt = value #( lt_t161t[ bsart = <ls_data_batxt>-bsart ]-batxt optional ).
+        endloop.
+        sort lt_data by prnumber pritem.
         loop at lt_data into data(ls_data).
           append value #(
        prnumber     = ls_data-prnumber
@@ -14298,10 +14448,10 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
       if et_entityset is not initial.
         loop at et_entityset assigning field-symbol(<ls_entityset>).
           if <ls_entityset>-action = 'A'.
-            <ls_entityset>-action = 'Approved'.
+            <ls_entityset>-action = text-018.
           endif.
           if <ls_entityset>-action = 'R'.
-            <ls_entityset>-action = 'Rejected'.
+            <ls_entityset>-action = text-019.
           endif.
           <ls_entityset>-date = |{ <ls_entityset>-date+4(2) }/{ <ls_entityset>-date+6(2) }/{ <ls_entityset>-date+0(4) }|.
           <ls_entityset>-time = |{ <ls_entityset>-time+0(2) }:{ <ls_entityset>-time+2(2) }:{ <ls_entityset>-time+4(2) }|.
@@ -15015,23 +15165,27 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
                                                               e_ccode     = lv_bukrs ).
 
     if lv_loginid is not initial.
-      select single * from zapp_roles into @data(ls_role) where id = @lv_loginid and role = 'ADMIN' and application = 'APP.11'.
+      select single @abap_true from zapp_roles into @data(lv_role_exists) where id = @lv_loginid and role = 'ADMIN' and application = 'APP.11'.
       if sy-subrc is not initial.
-        select single * from zapp_roles into @ls_role where id = @lv_loginid and role = 'BUYER' and application = 'APP.11'.
+        select single @abap_true from zapp_roles into @lv_role_exists where id = @lv_loginid and role = 'BUYER' and application = 'APP.11'.
         if sy-subrc is not initial.
 
-          select single * from zapp_roles into @ls_role
+          select single @abap_true from zapp_roles into @lv_role_exists
              where id = @lv_loginid and role = 'APPROVER' and application = 'APP.11'.
           if sy-subrc = 0.
             data(approver) = 'X'.
             translate lv_loginid to upper case.
-            select single id, name from zrfq_user_master into @data(ls_ID) where id = @lv_loginid .
+            select id, name from zrfq_user_master into @data(ls_ID) up to 1 rows where id = @lv_loginid
+              order by id.
+            endselect.
           endif.
 
         else.
           data(buyerrole) = 'X'.
           translate lv_loginid to upper case.
-          select single id, name from zrfq_user_master into @ls_ID where id = @lv_loginid.
+          select id, name from zrfq_user_master into @ls_ID up to 1 rows where id = @lv_loginid
+            order by id.
+          endselect.
         endif.
       else.
         data(admin) = 'X'.
@@ -15040,12 +15194,12 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
 
 
 
+    data lv_no_eknam type t024-eknam.
     select
       from znfa_header as a left outer join
       zrfq_header as b on ( b~event_no = a~event_no )
       left outer  join zgnfa_item  as c on ( c~eventid = a~event_no )
       left outer join eban as d on ( d~banfn = c~prnumber and d~bnfpo = c~pritem )
-      left outer join t024 as e1 on ( e1~ekgrp = a~ekgrp )
       left outer join zrfq_user_master as e on ( e~id = a~buyer and e~usertype = 'BUYER' )
 
 
@@ -15074,7 +15228,7 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
       c~pritem,
       d~ebeln,
       e~name as buyername,
-      e1~eknam,
+      @lv_no_eknam as eknam,
       ' ' as querysolve,
       ' ' as querychk
       where a~nfa_id in @lr_nfaid and a~event_no in @lr_eventid
@@ -15083,6 +15237,14 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
 
     sort lt_gnfa  by nfa_id.
     delete adjacent duplicates from lt_gnfa comparing nfa_id.
+    if lt_gnfa is not initial.
+      select ekgrp, eknam from t024 into table @data(lt_t024_gnfa)
+        for all entries in @lt_gnfa
+        where ekgrp = @lt_gnfa-ekgrp.
+      loop at lt_gnfa assigning field-symbol(<ls_gnfa_eknam>).
+        <ls_gnfa_eknam>-eknam = value #( lt_t024_gnfa[ ekgrp = <ls_gnfa_eknam>-ekgrp ]-eknam optional ).
+      endloop.
+    endif.
 
     types : begin of ty_q,
               nfaid      type zgnfa_query_tab-nfaid,
@@ -15098,7 +15260,8 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
       select *
         into table @data(lt_query)
         from zgnfa_query_tab
-        where nfaid = @<fs_gnfa>-nfa_id.
+        where nfaid = @<fs_gnfa>-nfa_id
+        order by primary key.
       if lt_query is initial.
         clear: <fs_gnfa>-querysolve,
      <fs_gnfa>-querychk.
@@ -15350,29 +15513,41 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
 *            and nfaamt = @gt_nfa-nfaamt
 *            and opex_capex = @gt_nfa-opex_capex.
 
-      select
-             *
-            from zgnfa_approval
-            into table @data(lt_APPROVAL)
-            for all entries in @gt_nfa
-            where nfatype = @gt_nfa-nfatype
-            and gencat = @gt_nfa-gencat
-            and ekgrp = @gt_nfa-ekgrp
-            and opex_capex = @gt_nfa-opex_capex.
+      if gt_nfa is not initial.
+        select
+               *
+              from zgnfa_approval
+              into table @data(lt_APPROVAL)
+              for all entries in @gt_nfa
+              where nfatype = @gt_nfa-nfatype
+              and gencat = @gt_nfa-gencat
+              and ekgrp = @gt_nfa-ekgrp
+              and opex_capex = @gt_nfa-opex_capex.
+        sort lt_approval by nfatype gencat ekgrp opex_capex amount_from amount_to.
+      endif.
 *---------------EOC Ali on 03.08.2026----------------*
 
-      select id, name from zrfq_user_master into table @data(lt_USER_MASTER) for all entries in @lt_DEPARTMENT_DET where id = @lt_DEPARTMENT_DET-hod_user_department+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-hod_scm+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-hod_project_dev+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-functional_hod_scm+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-project_controller+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-budget_controller+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-finance_controller+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-head_sc+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-chro+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-gcfo+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-ceo+0(10)
-                                                                                                                   or id = @lt_DEPARTMENT_DET-mgr_scm+0(10).
+      data lr_user_id type range of zrfq_user_master-id.
+      loop at lt_department_det into data(ls_dept_ids).
+        lr_user_id = value #( base lr_user_id sign = 'I' option = 'EQ'
+                              ( low = ls_dept_ids-hod_user_department+0(10) )
+                              ( low = ls_dept_ids-hod_scm+0(10) )
+                              ( low = ls_dept_ids-hod_project_dev+0(10) )
+                              ( low = ls_dept_ids-functional_hod_scm+0(10) )
+                              ( low = ls_dept_ids-project_controller+0(10) )
+                              ( low = ls_dept_ids-budget_controller+0(10) )
+                              ( low = ls_dept_ids-finance_controller+0(10) )
+                              ( low = ls_dept_ids-head_sc+0(10) )
+                              ( low = ls_dept_ids-chro+0(10) )
+                              ( low = ls_dept_ids-gcfo+0(10) )
+                              ( low = ls_dept_ids-ceo+0(10) )
+                              ( low = ls_dept_ids-mgr_scm+0(10) ) ).
+      endloop.
+      sort lr_user_id by low.
+      delete adjacent duplicates from lr_user_id comparing low.
+      if lr_user_id is not initial.
+        select id, name from zrfq_user_master into table @data(lt_USER_MASTER) where id in @lr_user_id.
+      endif.
       loop at lt_GNFA into ls_GNFA.
 
         if buyerrole = 'X'.
@@ -15444,7 +15619,7 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
                 if sy-subrc is initial.
                   case lv_level.
                     when 'BUYER'.
-                      lv_apppending = 'Buyer'.
+                      lv_apppending = text-020.
                     when 'HOD-U'.
                       read table lt_USER_MASTER into data(ls_USER_MASTER) with key id = ls_department_det-hod_user_department.
                       lv_apppending = |{ ls_department_det-hod_user_department } { ls_USER_MASTER-name }|.
@@ -15496,7 +15671,9 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
           endif.
 *          endif.
         endif.
-        select single * from zgnfa_history into @data(ls_his) where nfaid = @ls_GNFA-nfa_id.
+        select edate, etime from zgnfa_history into @data(ls_his) up to 1 rows where nfaid = @ls_GNFA-nfa_id
+          order by edate descending, etime descending.
+        endselect.
         concatenate ls_his-edate ls_his-etime into data(lv_date) separated by space.
         concatenate ls_gnfa-createdon ls_gnfa-createdat into data(lv_create) separated by space.
 
@@ -16330,38 +16507,37 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
       where nfaid = @nfaid
         and eventid = @eventid.
     if lt_header is not initial.
-      select
-        prnumber,
-        pritem,
-        purgroup
-        from zrfq_prdashboard
-        for all entries in @lt_header
-        where prnumber = @lt_header-prnumber
-        and pritem = @lt_header-pritem
+      select distinct
+        p~prnumber,
+        p~pritem,
+        p~purgroup
+        from zrfq_prdashboard as p
+        inner join @lt_header as h on ( h~prnumber = p~prnumber and h~pritem = p~pritem )
         into table @data(lt_purgroup).
 
-      select
+*     all LT_HEADER rows were read with EVENTID = @EVENTID
+      select distinct
         event_no,
         unitamt,
         taxcode
         from zrfq_item_bid_re
         into table @data(lt_item)
-        for all entries in @lt_header
-        where  event_no = @lt_header-eventid.
+        where  event_no = @eventid.
 
       select *
            from zrfq_itm_bid_srv
            into table @data(lt_bid_srv)
-           for all entries in @lt_header
-           where  event_no = @lt_header-eventid.
+           where  event_no = @eventid.
     endif.
 
-    select single
+    select
       del_term,
       paymentterm
       from zrfq_header
-      into @data(ls_header4)
-      where event_no = @eventid.
+      into @data(ls_header4) up to 1 rows
+      where event_no = @eventid
+      order by del_term, paymentterm.
+    endselect.
 
 
 **    "----------------------------
@@ -16375,6 +16551,7 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
       append ls_head to lt_head.
     endloop.
 
+    sort lt_head by doctype awardedsupplier prnumber pritem.
     loop at lt_head into data(ls_header1)." with key lifnr = ls_header-awardedsupplier bukrs = ls_header-bukrs.
       data(ls_header) = ls_header1.
       select single ebeln from eban into @data(lv_po) where banfn = @ls_header-prnumber and bnfpo = @ls_header-pritem.
@@ -16394,7 +16571,7 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
         doctype      = ls_poheader-doc_type
         companycode  = ls_header-bukrs
         ponumber     = lv_po
-        Message      = 'PO already created' ) to return.
+        Message      = text-021 ) to return.
         clear : lv_po, ls_header,lv_name1.
         continue.
       endif.
@@ -16402,7 +16579,9 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
 
       ls_poheader-doc_type = ls_header-doctype.
       ls_poheader-vendor = |{ ls_header-awardedsupplier alpha = in }|.
-      select single ekorg from t024w into @data(lv_EKORG) where werks = @ls_header-werks.
+      select ekorg from t024w into @data(lv_EKORG) up to 1 rows where werks = @ls_header-werks
+        order by ekorg.
+      endselect.
       if lv_EKORG is not initial.
         ls_poheader-purch_org = lv_EKORG.
       endif.
@@ -16467,7 +16646,9 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
         ls_poitems-item_cat  = 'D'.
       endif.
       select single matkl , knttp, extstoragelocationforpurg , kostl , sakto  from eban into @data(ls_eban) where banfn = @ls_header-prnumber and bnfpo = @ls_header-pritem.
-      select single kostl , sakto  from ebkn into @data(ls_ebkn) where banfn = @ls_header-prnumber and bnfpo = @ls_header-pritem.
+      select kostl , sakto  from ebkn into @data(ls_ebkn) up to 1 rows where banfn = @ls_header-prnumber and bnfpo = @ls_header-pritem
+        order by kostl, sakto.
+      endselect.
       if sy-subrc is initial.
         ls_poitems-stge_loc = ls_eban-extstoragelocationforpurg.
         ls_poitems-matl_group = ls_eban-matkl.
@@ -16494,9 +16675,24 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
       ls_te_item-zgrn_uni = 'DUMMY00001'.
       ls_te_item-zpo_uni = 'DUMMY00001'.
 
-      clear ls_extensionin.
+      data lv_ext_container type c length 960.
+      clear : ls_extensionin, lv_ext_container.
       ls_extensionin-structure  = 'BAPI_TE_MEPOITEM'.
-      ls_extensionin-valuepart1 = ls_te_item.
+      cl_abap_container_utilities=>fill_container_c(
+        exporting
+          im_value               = ls_te_item
+        importing
+          ex_container           = lv_ext_container
+        exceptions
+          illegal_parameter_type = 1
+          others                 = 2 ).
+      if sy-subrc <> 0.
+        clear lv_ext_container.
+      endif.
+      ls_extensionin-valuepart1 = lv_ext_container+0(240).
+      ls_extensionin-valuepart2 = lv_ext_container+240(240).
+      ls_extensionin-valuepart3 = lv_ext_container+480(240).
+      ls_extensionin-valuepart4 = lv_ext_container+720(240).
       append ls_extensionin to lt_extensionin.
 
       clear ls_te_itemx.
@@ -16504,9 +16700,23 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
       ls_te_itemx-zgrn_uni = abap_true.
       ls_te_itemx-zpo_uni = abap_true.
 
-      clear ls_extensionin.
+      clear : ls_extensionin, lv_ext_container.
       ls_extensionin-structure  = 'BAPI_TE_MEPOITEMX'.
-      ls_extensionin-valuepart1 = ls_te_itemx.
+      cl_abap_container_utilities=>fill_container_c(
+        exporting
+          im_value               = ls_te_itemx
+        importing
+          ex_container           = lv_ext_container
+        exceptions
+          illegal_parameter_type = 1
+          others                 = 2 ).
+      if sy-subrc <> 0.
+        clear lv_ext_container.
+      endif.
+      ls_extensionin-valuepart1 = lv_ext_container+0(240).
+      ls_extensionin-valuepart2 = lv_ext_container+240(240).
+      ls_extensionin-valuepart3 = lv_ext_container+480(240).
+      ls_extensionin-valuepart4 = lv_ext_container+720(240).
       append ls_extensionin to lt_extensionin.
 
       ls_poschedules-po_item        = ls_header-lineitem.
@@ -16669,12 +16879,12 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
             call function 'BAPI_TRANSACTION_COMMIT'
               exporting
                 wait = 'X'.
-            lv_message = |PO created.|.
+            lv_message = text-022.
           else.
             call function 'BAPI_TRANSACTION_ROLLBACK'.
           endif.
         else.
-          lv_message = |PO not created.|.
+          lv_message = text-023.
         endif.
 
         clear : ls_poitems, ls_poitemsx, ls_poschedules, ls_poschedulesX , lt_poitems, lt_poitemsx, lt_poschedules, lt_poschedulesX,ls_eban.
@@ -16832,6 +17042,9 @@ loop at it_att INTO DATA(wa_att).
       EXCEPTIONS
         not_found = 1
         OTHERS    = 2.
+  IF sy-subrc <> 0.
+    CONTINUE.
+  ENDIF.
 
 
 LOOP AT lt_file INTO LS_FILE.
@@ -16856,7 +17069,7 @@ er_entity-sendven = wa_attch-sendtosupplier.
 ENDIF.
 *er_entity-mimetype = wa_att-mimetype
 *er_entity-objecttype = wa_att-obj_type.
-er_entity-detail = 'PR Attachment'.
+er_entity-detail = text-024.
  append er_entity to et_entityset.
  CLEAR : ER_ENTITY , LS_FILE .
 
@@ -17368,6 +17581,8 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
 * | [<---] RETURN                         TYPE        CHAR10
 * +--------------------------------------------------------------------------------------</SIGNATURE>
   method send_mail.
+    constants: lc_br  type string value '</br>' ##NO_TEXT,
+               lc_br2 type string value '<br/>' ##NO_TEXT.
     types: begin of ty_email,
              email type ad_smtpadr,
            end of ty_email.
@@ -17414,13 +17629,13 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
           ( line = |<HTML> <BODY>| )
           ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_approver },</br>| )
           ( line = |<br/>| )
-          ( line = |NFA { lv_nfaid } is pending for your approval.</br>| )
-          ( line = |Please review and approve at the earliest.</br>| )
+          ( line = replace( val = text-025 sub = '&1' with = lv_nfaid ) && lc_br )
+          ( line = text-026 && lc_br )
           ( line = |<br/>| )
           ( line = |<a href="https://azureportalprod-cqtz7hbe.launchpad.cfapps.in30.hana.ondemand.com/site?siteId=fb5c783b-a296-47c9-b4d3-a1a5d4285ace#Shell-home">Click here to view</a></br>| )
           ( line = |<br/>| )
-          ( line = |Regards,<br/>| )
-          ( line = |Procurement Team| )
+          ( line = text-027 && lc_br2 )
+          ( line = text-028 )
           ( line = |</BODY></HTML>| )
         ).
       when 'MAIL2'.
@@ -17428,71 +17643,71 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
           ( line = |<HTML> <BODY>| )
           ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
           ( line = |<br/>| )
-          ( line = |Approver details missing against the NFA { lv_nfaid } initiated for Approval.</br>| )
+          ( line = replace( val = text-029 sub = '&1' with = lv_nfaid ) && lc_br )
           ( line = |<br/>| )
-          ( line = |Kindly click here to vire the NFA details and maintain the appropriate approver details and resubmit for approval.</br>| )
+          ( line = text-030 && lc_br )
           ( line = |<br/>| )
-          ( line = |Thanks,| )
+          ( line = text-031 )
           ( line = |<br/>| )
-          ( line = |This is system generated E Mail.| )
+          ( line = text-032 )
         ).
       when 'MAIL3'.
         lt_mailtxt = value #(
     ( line = |<HTML> <BODY>| )
     ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
     ( line = |<br/>| )
-    ( line = |NFA { lv_nfaid } has been approved at all levels.</br>| )
-    ( line = |Please proceed with PO creation.</br>| )
+    ( line = replace( val = text-033 sub = '&1' with = lv_nfaid ) && lc_br )
+    ( line = text-034 && lc_br )
     ( line = |<br/>| )
-    ( line = |Regards,<br/>| )
-    ( line = |Procurement Team| )
+    ( line = text-027 && lc_br2 )
+    ( line = text-028 )
         ).
       when 'MAIL4'.
         lt_mailtxt = value #(
           ( line = |<HTML> <BODY>| )
           ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_recipient },</br>| )
           ( line = |<br/>| )
-          ( line = |PO { i_po } has been successfully created.</br>| )
-          ( line = |Vendor: { i_vendor }</br>| )
+          ( line = replace( val = text-035 sub = '&1' with = i_po ) && lc_br )
+          ( line = replace( val = text-036 sub = '&1' with = i_vendor ) && lc_br )
           ( line = |<br/>| )
-          ( line = |Please review and proceed with further actions.</br>| )
+          ( line = text-037 && lc_br )
           ( line = |<br/>| )
-          ( line = |Regards,<br/>| )
-          ( line = |Procurement Team| )
+          ( line = text-027 && lc_br2 )
+          ( line = text-028 )
         ).
       when 'MAIL5'.
         lt_mailtxt = value #(
           ( line = |<HTML> <BODY>| )
           ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
           ( line = |<br/>| )
-          ( line = |NFA { lv_nfaid } has been rejected by { i_approver } due to the following reason:</br>| )
+          ( line = replace( val = replace( val = text-038 sub = '&1' with = lv_nfaid ) sub = '&2' with = i_approver ) && lc_br )
           ( line = |{ i_reason }.</br>| )
           ( line = |<br/>| )
-          ( line = |Regards,<br/>| )
-          ( line = |Procurement Team| )
+          ( line = text-027 && lc_br2 )
+          ( line = text-028 )
         ).
       when 'MAIL6'.
         lt_mailtxt = value #(
           ( line = |<HTML> <BODY>| )
           ( line = |<p style="font-family:Calibri;font-size:15;">Dear { i_buyer },</br>| )
           ( line = |<br/>| )
-          ( line = |A Query has been raised by { i_approver }.</br>| )
-          ( line = |Please provide the required response on time to process it further.</br>| )
+          ( line = replace( val = text-039 sub = '&1' with = i_approver ) && lc_br )
+          ( line = text-040 && lc_br )
           ( line = |<br/>| )
-          ( line = |Regards,<br/>| )
-          ( line = |Procurement Team| )
+          ( line = text-027 && lc_br2 )
+          ( line = text-028 )
         ).
       when 'MAIL7'.
         lt_mailtxt = value #(
           ( line = |<HTML> <BODY>| )
           ( line = |<p style="font-family:Calibri;font-size:15;">Dear Vendor On Boarding Team,</br>| )
           ( line = |<br/>| )
-          ( line = |There is an NFA created for the Vendor { i_vendor } for Company Code { i_bukrs }.</br>| )
+          ( line = replace( val = replace( val = text-041 sub = '&1' with = i_vendor ) sub = '&2' with = i_bukrs ) && lc_br )
           ( line = |<br/>| )
-          ( line = |Kindly extend the Vendor Code against the Company Code for proceeding with NFA.</br>| )
+          ( line = text-042 && lc_br )
           ( line = |<br/>| )
-          ( line = |Regards,<br/>| )
-          ( line = |Procurement Team| )
+          ( line = text-027 && lc_br2 )
+          ( line = text-028 )
         ).
     endcase.
 
@@ -17653,6 +17868,7 @@ et_entityset =  VALUE #( for LS_DATA IN IT_DATA INDEX INTO IND (
 SELECT DISTINCT SUPPLIER as vendor , SUPPLIERNAME as name , supplierref as SupplierRefrence
   FROM ZRFQ_item_BID_RE
   WHERE event_no IN @r_event
+  ORDER BY supplier, suppliername, supplierref
    INTO  CORRESPONDING FIELDS OF TABLE @et_entityset.
 
 

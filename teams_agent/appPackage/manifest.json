@@ -1,0 +1,44 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.19/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.19",
+  "version": "1.0.0",
+  "id": "${{BOT_ID}}",
+  "developer": {
+    "name": "KPMG SAP Team",
+    "websiteUrl": "https://www.example.com",
+    "privacyUrl": "https://www.example.com/privacy",
+    "termsOfUseUrl": "https://www.example.com/terms"
+  },
+  "name": {
+    "short": "SAP Assistant",
+    "full": "SAP and ABAP Assistant"
+  },
+  "description": {
+    "short": "Answers SAP and ABAP questions in Teams.",
+    "full": "An AI assistant powered by Claude that answers questions about ABAP, ATC findings, SAP Gateway / OData, CDS, RAP, Fiori and SAP functional topics, and can read the team's ABAP sources."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#005EB8",
+  "bots": [
+    {
+      "botId": "${{BOT_ID}}",
+      "scopes": ["personal", "groupChat", "team"],
+      "supportsFiles": false,
+      "isNotificationOnly": false,
+      "commandLists": [
+        {
+          "scopes": ["personal", "groupChat", "team"],
+          "commands": [
+            { "title": "help", "description": "What I can do" },
+            { "title": "reset", "description": "Start a fresh conversation" }
+          ]
+        }
+      ]
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": []
+}
